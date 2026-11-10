@@ -9,7 +9,6 @@ import {
   Expense,
   BusinessSettings,
   SyncLog,
-  UserAccount,
 } from '../types';
 
 const STORAGE_KEYS = {
@@ -23,8 +22,6 @@ const STORAGE_KEYS = {
   EXPENSES: 'bm_expenses_v1',
   SETTINGS: 'bm_settings_v1',
   SYNC_LOGS: 'bm_sync_logs_v1',
-  USERS: 'bm_users_v1',
-  CURRENT_USER: 'bm_current_user_v1',
 };
 
 export const DEFAULT_SETTINGS: BusinessSettings = {
@@ -555,28 +552,6 @@ export const INITIAL_SYNC_LOGS: SyncLog[] = [
   },
 ];
 
-export const INITIAL_USERS: UserAccount[] = [
-  {
-    id: 'user_admin_01',
-    name: 'Abdullah Al Mamun (Admin)',
-    email: 'abdullah286205@gmail.com',
-    password: '123456',
-    role: 'Admin',
-    phone: '+880 1712-345678',
-    created_at: '2026-11-09T00:00:00.000Z',
-    last_login: new Date().toISOString(),
-  },
-  {
-    id: 'user_staff_02',
-    name: 'Sales Cashier 1',
-    email: 'cashier@businessmind.com',
-    password: '123456',
-    role: 'Sales Staff',
-    phone: '+880 1712-888888',
-    created_at: '2026-11-09T00:00:00.000Z',
-  },
-];
-
 /**
  * Storage helpers
  */
@@ -622,23 +597,6 @@ export function initDatabase() {
   }
   if (!localStorage.getItem(STORAGE_KEYS.SYNC_LOGS)) {
     setLocal(STORAGE_KEYS.SYNC_LOGS, INITIAL_SYNC_LOGS);
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
-    setLocal(STORAGE_KEYS.USERS, INITIAL_USERS);
-  } else {
-    const existingUsers = getLocal<UserAccount[]>(STORAGE_KEYS.USERS, []);
-    const adminIdx = existingUsers.findIndex((u) => u.email.toLowerCase() === 'abdullah286205@gmail.com');
-    if (adminIdx === -1) {
-      existingUsers.unshift(INITIAL_USERS[0]);
-      setLocal(STORAGE_KEYS.USERS, existingUsers);
-    } else {
-      existingUsers[adminIdx].password = '123456';
-      existingUsers[adminIdx].role = 'Admin';
-      setLocal(STORAGE_KEYS.USERS, existingUsers);
-    }
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
-    setLocal(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0]);
   }
 }
 

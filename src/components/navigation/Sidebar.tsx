@@ -16,11 +16,9 @@ import {
   CloudCheck,
   CloudAlert,
   Languages,
-  ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AppNavigationModule } from '../../types';
-import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface NavItem {
   id: AppNavigationModule;
@@ -45,19 +43,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export const Sidebar: React.FC = () => {
-  const {
-    activeModule,
-    setActiveModule,
-    t,
-    isOnline,
-    syncStatus,
-    triggerSyncNow,
-    language,
-    setLanguage,
-    settings,
-    currentUser,
-    setShowLoginModal,
-  } = useApp();
+  const { activeModule, setActiveModule, t, isOnline, syncStatus, triggerSyncNow, language, setLanguage, settings } = useApp();
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-200 select-none shrink-0 h-screen sticky top-0">
@@ -105,33 +91,6 @@ export const Sidebar: React.FC = () => {
         })}
       </nav>
 
-      {/* Staff Account & Admin Profile */}
-      <div className="px-3 py-2 border-t border-slate-800/60 bg-slate-900/50">
-        <button
-          type="button"
-          onClick={() => setShowLoginModal(true)}
-          className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-750 transition-colors text-left group"
-          title="Manage Staff Accounts / Sign Out"
-        >
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-300 font-bold text-xs flex items-center justify-center border border-emerald-500/30 shrink-0">
-            {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-white truncate group-hover:text-emerald-300">
-                {currentUser ? currentUser.name : 'Admin Sign In'}
-              </span>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
-                {currentUser ? currentUser.role : 'Guest'}
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 font-mono truncate">
-              {currentUser ? currentUser.email : 'abdullah286205@gmail.com'}
-            </p>
-          </div>
-        </button>
-      </div>
-
       {/* Bottom Sync & Language Footer */}
       <div className="p-3 border-t border-slate-800/80 space-y-2 bg-slate-950/40">
         <div className="flex items-center justify-between text-xs text-slate-400 px-1">
@@ -153,9 +112,6 @@ export const Sidebar: React.FC = () => {
             <span>{language === 'en' ? 'বাংলা' : 'English'}</span>
           </button>
         </div>
-
-        {/* Android & Web App Install CTA */}
-        <PWAInstallButton variant="full" />
 
         <button
           onClick={triggerSyncNow}

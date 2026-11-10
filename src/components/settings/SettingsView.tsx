@@ -16,11 +16,9 @@ import {
   Save,
   CheckCircle,
   RotateCcw,
-  Smartphone,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Language } from '../../utils/i18n';
-import { AndroidWebModal } from '../common/AndroidWebModal';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -37,9 +35,6 @@ export const SettingsView: React.FC = () => {
     syncLogs,
     exportDatabaseJson,
     importDatabaseJson,
-    currentUser,
-    users,
-    setShowLoginModal,
   } = useApp();
 
   // Local form states
@@ -55,7 +50,6 @@ export const SettingsView: React.FC = () => {
   const [lowStockThreshold, setLowStockThreshold] = useState(settings.low_stock_threshold);
   const [allowNegativeStock, setAllowNegativeStock] = useState(settings.allow_negative_stock);
   const [autoSync, setAutoSync] = useState(settings.auto_sync);
-  const [showAndroidModal, setShowAndroidModal] = useState(false);
 
   // Active Role tab
   const [selectedRole, setSelectedRole] = useState<'Owner' | 'Admin' | 'Manager' | 'Sales Staff'>('Owner');
@@ -358,53 +352,6 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section D2: Android & Web Application Deployment */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-sm text-white">{t('androidWebApp')}</h3>
-            </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
-              PWA & Native APK Ready
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <span className="text-slate-400 block text-[11px]">Target Platforms</span>
-              <span className="font-semibold text-white block">Android, Web, Tablets</span>
-              <span className="text-[10px] text-slate-500 block">Responsive layout + touch POS</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <span className="text-slate-400 block text-[11px]">Offline Persistence</span>
-              <span className="font-semibold text-emerald-400 block">100% IndexedDB Active</span>
-              <span className="text-[10px] text-slate-500 block">Zero-latency offline sales</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <span className="text-slate-400 block text-[11px]">Hardware Access</span>
-              <span className="font-semibold text-teal-400 block">Camera Barcode Scanner</span>
-              <span className="text-[10px] text-slate-500 block">Thermal receipt printing</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-            <p className="text-[11px] text-slate-400 max-w-lg">
-              {t('installAppDesc')} Includes Web App Manifest, Service Worker precaching, and Google Bubblewrap / Capacitor APK packaging guides.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowAndroidModal(true)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors shadow-sm shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>{t('installApp')}</span>
-            </button>
-          </div>
-        </div>
-
         {/* Section E: Database Backup & Restore */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
@@ -515,103 +462,37 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section H: Admin Panel Account & Staff Access Control */}
+        {/* Section H: User Roles & Permissions Preview */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-sm text-white">Admin Panel Account & Staff Access</h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowLoginModal(true)}
-              className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors"
-            >
-              Sign In / Switch Staff Account
-            </button>
+          <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+            <Shield className="w-4 h-4 text-emerald-400" />
+            <h3 className="font-bold text-sm text-white">{t('userRoles')}</h3>
           </div>
 
-          {/* Active Administrator Card */}
-          <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-750 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-bold text-sm shadow-md">
-                AA
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">Primary Admin Account</span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                    SUPER ADMIN
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px]">
-                  <span className="text-slate-300 font-mono">
-                    Username / Email: <strong className="text-white">abdullah286205@gmail.com</strong>
-                  </span>
-                  <span className="text-slate-400 font-mono">
-                    Password: <strong className="text-emerald-400">123456</strong>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" />
-                <span>Configured & Active</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Staff Accounts Registered */}
-          <div className="space-y-2 pt-1">
-            <span className="text-xs font-semibold text-slate-300 block">Registered Staff Users</span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between"
-                >
-                  <div className="min-w-0">
-                    <span className="font-bold text-white block truncate">{u.name}</span>
-                    <span className="text-slate-400 text-[11px] font-mono block truncate">{u.email}</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
-                    {u.role}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Roles Selector */}
-          <div className="pt-2">
-            <span className="text-xs font-semibold text-slate-400 block mb-2">Role Permissions Matrix</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {(['Owner', 'Admin', 'Manager', 'Sales Staff'] as const).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setSelectedRole(role)}
-                  className={`p-3 rounded-xl border text-left transition-colors ${
-                    selectedRole === role
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                      : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="font-bold text-xs block">{role}</span>
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">
-                    {role === 'Owner'
-                      ? 'Full Root Access'
-                      : role === 'Admin'
-                      ? 'Managerial & Reports'
-                      : role === 'Manager'
-                      ? 'Stock & Inventory'
-                      : 'POS Terminal Only'}
-                  </span>
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(['Owner', 'Admin', 'Manager', 'Sales Staff'] as const).map((role) => (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setSelectedRole(role)}
+                className={`p-3 rounded-xl border text-left transition-colors ${
+                  selectedRole === role
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                    : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="font-bold text-xs block">{role}</span>
+                <span className="text-[10px] text-slate-500 mt-0.5 block">
+                  {role === 'Owner'
+                    ? 'Full Root Access'
+                    : role === 'Admin'
+                    ? 'Managerial & Reports'
+                    : role === 'Manager'
+                    ? 'Stock & Inventory'
+                    : 'POS Terminal Only'}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
 
@@ -626,12 +507,6 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       </form>
-
-      {/* Android & Web App Installation Modal */}
-      <AndroidWebModal
-        isOpen={showAndroidModal}
-        onClose={() => setShowAndroidModal(false)}
-      />
     </div>
   );
 };

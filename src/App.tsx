@@ -18,7 +18,6 @@ import { ExpenseManagement } from './components/expenses/ExpenseManagement';
 import { SettingsView } from './components/settings/SettingsView';
 import { ProductDetailsModal } from './components/product/ProductDetailsModal';
 import { ProductFormModal } from './components/product/ProductFormModal';
-import { AdminLoginModal } from './components/common/AdminLoginModal';
 import { Product } from './types';
 
 function AppContent() {
@@ -101,9 +100,6 @@ function AppContent() {
           onUpdate={(prod) => updateProduct(prod)}
         />
       )}
-
-      {/* Admin Panel Login & Staff Profile Modal */}
-      <AdminLoginModal />
     </div>
   );
 }

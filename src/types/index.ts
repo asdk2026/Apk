@@ -246,16 +246,3 @@ export type AppNavigationModule =
   | 'barcode'
   | 'expenses'
   | 'settings';
-
-export type UserRole = 'Owner' | 'Admin' | 'Manager' | 'Sales Staff';
-
-export interface UserAccount {
-  id: string;
-  name: string;
-  email: string;
-  password?: string;
-  role: UserRole;
-  phone?: string;
-  created_at: string;
-  last_login?: string;
-}
