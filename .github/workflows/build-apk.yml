@@ -34,7 +34,7 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Verify Capacitor CLI
-        run: npx --no-install cap --version
+        run: npx cap --version
 
       - name: Build Web Application
         run: npm run build
