@@ -31,15 +31,17 @@ jobs:
           cache: "npm"
 
       - name: Install Node Dependencies
-        run: |
-             npm install
-             npm install @capacitor/core @capacitor/android @capacitor/cli
-             
+        run: npm install --no-audit --no-fund
+
+      - name: Verify Capacitor CLI
+        run: npx --no-install cap --version
+
       - name: Build Web Application
         run: npm run build
 
       - name: Sync Capacitor Android
-        run: npx cap sync android
+        run: npx --no-install cap sync android
+
       - name: Make Gradle Executable
         run: chmod +x android/gradlew
 
@@ -83,3 +85,4 @@ jobs:
           files: release-output/BusinessMind-v1.0.0.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
