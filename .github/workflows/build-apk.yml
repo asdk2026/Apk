@@ -31,14 +31,14 @@ jobs:
           cache: "npm"
 
       - name: Install Node Dependencies
-        run: npm install --legacy-peer-deps
-
+        run: npm install
+             npm install @capacitor/core @capacitor/android @capacitor/cli
+             
       - name: Build Web Application
         run: npm run build
 
       - name: Sync Capacitor Android
         run: npx cap sync android
-
       - name: Make Gradle Executable
         run: chmod +x android/gradlew
 
