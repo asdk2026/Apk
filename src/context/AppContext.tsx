@@ -11,6 +11,7 @@ import {
   BusinessSettings,
   SyncLog,
   AppNavigationModule,
+  UserAccount,
 } from '../types';
 import {
   STORAGE_KEYS,
@@ -23,8 +24,17 @@ import {
   INITIAL_INVOICES,
   INITIAL_EXPENSES,
   INITIAL_SYNC_LOGS,
+  INITIAL_USERS,
+  INITIAL_CATEGORIES,
+  deleteAppAndData,
   initDatabase,
 } from '../utils/db';
+import {
+  syncStoreToFirebase,
+  fetchStoreFromFirebase,
+  deleteProductFromCloud,
+  firebaseConfig,
+} from '../utils/firebase';
 import { translations, Language } from '../utils/i18n';
 
 interface NotificationItem {
@@ -95,6 +105,31 @@ interface AppContextType {
 
   // Quick Navigation shortcut helper
   openProductInPos?: (product: Product) => void;
+
+  // Admin & User Authentication
+  currentUser: UserAccount | null;
+  users: UserAccount[];
+  login: (email: string, password: string) => { success: boolean; error?: string };
+  logout: () => void;
+  addUser: (user: Omit<UserAccount, 'id' | 'created_at'>) => void;
+  updateUser: (user: UserAccount) => void;
+  deleteUser: (id: string) => void;
+  showLoginModal: boolean;
+  setShowLoginModal: (show: boolean) => void;
+
+  // Categories Management
+  categories: string[];
+  addCategory: (name: string) => void;
+  deleteCategory: (name: string) => void;
+
+  // Cloud Database Firebase
+  firebaseSyncStatus: 'connected' | 'syncing' | 'synced' | 'error' | 'disconnected';
+  syncToFirebase: () => Promise<boolean>;
+  syncFromFirebase: () => Promise<boolean>;
+  lastFirebaseSync: string | null;
+
+  // System Wipe / Delete App
+  deleteEntireApp: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -138,6 +173,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>(() =>
     getLocal<SyncLog[]>(STORAGE_KEYS.SYNC_LOGS, INITIAL_SYNC_LOGS)
   );
+  const [users, setUsers] = useState<UserAccount[]>(() =>
+    getLocal<UserAccount[]>(STORAGE_KEYS.USERS, INITIAL_USERS)
+  );
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() =>
+    getLocal<UserAccount | null>(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0])
+  );
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  const [categories, setCategories] = useState<string[]>(() =>
+    getLocal<string[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES)
+  );
+  const [firebaseSyncStatus, setFirebaseSyncStatus] = useState<
+    'connected' | 'syncing' | 'synced' | 'error' | 'disconnected'
+  >('connected');
+  const [lastFirebaseSync, setLastFirebaseSync] = useState<string | null>(() => {
+    return localStorage.getItem('bm_last_fb_sync') || null;
+  });
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -891,6 +943,155 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  // Authentication & Staff User Management
+  const login = useCallback(
+    (email: string, password: string) => {
+      const trimmedEmail = email.toLowerCase().trim();
+      const found = users.find((u) => u.email.toLowerCase().trim() === trimmedEmail);
+      if (!found) {
+        return { success: false, error: 'User account not found.' };
+      }
+      if (found.password && found.password !== password) {
+        return { success: false, error: 'Incorrect password. Please try again.' };
+      }
+      const updatedUser = { ...found, last_login: new Date().toISOString() };
+      setCurrentUser(updatedUser);
+      setLocal(STORAGE_KEYS.CURRENT_USER, updatedUser);
+      return { success: true };
+    },
+    [users]
+  );
+
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+  }, []);
+
+  const addUser = useCallback((userData: Omit<UserAccount, 'id' | 'created_at'>) => {
+    const newUser: UserAccount = {
+      ...userData,
+      id: `user_${Date.now()}`,
+      created_at: new Date().toISOString(),
+    };
+    setUsers((prev) => {
+      const next = [...prev, newUser];
+      setLocal(STORAGE_KEYS.USERS, next);
+      return next;
+    });
+  }, []);
+
+  const updateUser = useCallback(
+    (updated: UserAccount) => {
+      setUsers((prev) => {
+        const next = prev.map((u) => (u.id === updated.id ? updated : u));
+        setLocal(STORAGE_KEYS.USERS, next);
+        return next;
+      });
+      if (currentUser?.id === updated.id) {
+        setCurrentUser(updated);
+        setLocal(STORAGE_KEYS.CURRENT_USER, updated);
+      }
+    },
+    [currentUser]
+  );
+
+  const deleteUser = useCallback(
+    (id: string) => {
+      setUsers((prev) => {
+        const next = prev.filter((u) => u.id !== id);
+        setLocal(STORAGE_KEYS.USERS, next);
+        return next;
+      });
+      if (currentUser?.id === id) {
+        logout();
+      }
+    },
+    [currentUser, logout]
+  );
+
+  const addCategory = useCallback((newCat: string) => {
+    const trimmed = newCat.trim();
+    if (!trimmed) return;
+    setCategories((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      const updated = [...prev, trimmed];
+      setLocal(STORAGE_KEYS.CATEGORIES, updated);
+      return updated;
+    });
+  }, []);
+
+  const deleteCategory = useCallback((catToDelete: string) => {
+    setCategories((prev) => {
+      const updated = prev.filter((c) => c !== catToDelete);
+      setLocal(STORAGE_KEYS.CATEGORIES, updated);
+      return updated;
+    });
+  }, []);
+
+  const syncToFirebase = useCallback(async (): Promise<boolean> => {
+    setFirebaseSyncStatus('syncing');
+    try {
+      const res = await syncStoreToFirebase({
+        products,
+        customers,
+        suppliers,
+        invoices,
+        expenses,
+        categories,
+        settings,
+      });
+      if (res.success) {
+        setFirebaseSyncStatus('synced');
+        setLastFirebaseSync(res.syncedAt);
+        localStorage.setItem('bm_last_fb_sync', res.syncedAt);
+        return true;
+      } else {
+        setFirebaseSyncStatus('error');
+        return false;
+      }
+    } catch {
+      setFirebaseSyncStatus('error');
+      return false;
+    }
+  }, [products, customers, suppliers, invoices, expenses, categories, settings]);
+
+  const syncFromFirebase = useCallback(async (): Promise<boolean> => {
+    setFirebaseSyncStatus('syncing');
+    try {
+      const res = await fetchStoreFromFirebase();
+      if (res.success && res.data) {
+        if (res.data.products && res.data.products.length > 0) {
+          setProducts(res.data.products);
+          setLocal(STORAGE_KEYS.PRODUCTS, res.data.products);
+        }
+        if (res.data.customers && res.data.customers.length > 0) {
+          setCustomers(res.data.customers);
+          setLocal(STORAGE_KEYS.CUSTOMERS, res.data.customers);
+        }
+        if (res.data.categories && res.data.categories.length > 0) {
+          setCategories(res.data.categories);
+          setLocal(STORAGE_KEYS.CATEGORIES, res.data.categories);
+        }
+        setFirebaseSyncStatus('synced');
+        const now = new Date().toISOString();
+        setLastFirebaseSync(now);
+        localStorage.setItem('bm_last_fb_sync', now);
+        return true;
+      } else {
+        setFirebaseSyncStatus('error');
+        return false;
+      }
+    } catch {
+      setFirebaseSyncStatus('error');
+      return false;
+    }
+  }, []);
+
+  const deleteEntireApp = useCallback(() => {
+    deleteAppAndData();
+    window.location.reload();
+  }, []);
+
   const value = useMemo(
     () => ({
       activeModule,
@@ -937,6 +1138,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSettings,
       exportDatabaseJson,
       importDatabaseJson,
+      currentUser,
+      users,
+      login,
+      logout,
+      addUser,
+      updateUser,
+      deleteUser,
+      showLoginModal,
+      setShowLoginModal,
+      categories,
+      addCategory,
+      deleteCategory,
+      firebaseSyncStatus,
+      syncToFirebase,
+      syncFromFirebase,
+      lastFirebaseSync,
+      deleteEntireApp,
     }),
     [
       activeModule,
@@ -979,6 +1197,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSettings,
       exportDatabaseJson,
       importDatabaseJson,
+      currentUser,
+      users,
+      login,
+      logout,
+      addUser,
+      updateUser,
+      deleteUser,
+      showLoginModal,
+      setShowLoginModal,
+      categories,
+      addCategory,
+      deleteCategory,
+      firebaseSyncStatus,
+      syncToFirebase,
+      syncFromFirebase,
+      lastFirebaseSync,
+      deleteEntireApp,
     ]
   );
 

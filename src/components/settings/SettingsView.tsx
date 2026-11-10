@@ -16,9 +16,16 @@ import {
   Save,
   CheckCircle,
   RotateCcw,
+  Smartphone,
+  Trash2,
+  AlertTriangle,
+  RefreshCw,
+  Cloud,
+  Flame,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Language } from '../../utils/i18n';
+import { AndroidWebModal } from '../common/AndroidWebModal';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -35,6 +42,17 @@ export const SettingsView: React.FC = () => {
     syncLogs,
     exportDatabaseJson,
     importDatabaseJson,
+    currentUser,
+    users,
+    setShowLoginModal,
+    categories,
+    addCategory,
+    deleteCategory,
+    firebaseSyncStatus,
+    syncToFirebase,
+    syncFromFirebase,
+    lastFirebaseSync,
+    deleteEntireApp,
   } = useApp();
 
   // Local form states
@@ -50,6 +68,7 @@ export const SettingsView: React.FC = () => {
   const [lowStockThreshold, setLowStockThreshold] = useState(settings.low_stock_threshold);
   const [allowNegativeStock, setAllowNegativeStock] = useState(settings.allow_negative_stock);
   const [autoSync, setAutoSync] = useState(settings.auto_sync);
+  const [showAndroidModal, setShowAndroidModal] = useState(false);
 
   // Active Role tab
   const [selectedRole, setSelectedRole] = useState<'Owner' | 'Admin' | 'Manager' | 'Sales Staff'>('Owner');
@@ -104,6 +123,66 @@ export const SettingsView: React.FC = () => {
         }
       };
       reader.readAsText(file);
+    }
+  };
+
+  // Firebase Cloud Database handlers
+  const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
+  const [firebaseMsg, setFirebaseMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [showDeleteAppModal, setShowDeleteAppModal] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
+  const [settingsCategoryInput, setSettingsCategoryInput] = useState('');
+
+  const handleSyncFirebase = async () => {
+    setIsFirebaseSyncing(true);
+    setFirebaseMsg(null);
+    const ok = await syncToFirebase();
+    setIsFirebaseSyncing(false);
+    if (ok) {
+      setFirebaseMsg({
+        text: 'All local products, categories, invoices & dues synced to Firebase Firestore (business-mind-bc746)!',
+        type: 'success',
+      });
+    } else {
+      setFirebaseMsg({
+        text: 'Cloud sync encountered an issue. Local database is fully safe and operational.',
+        type: 'error',
+      });
+    }
+  };
+
+  const handlePullFirebase = async () => {
+    setIsFirebaseSyncing(true);
+    setFirebaseMsg(null);
+    const ok = await syncFromFirebase();
+    setIsFirebaseSyncing(false);
+    if (ok) {
+      setFirebaseMsg({
+        text: 'Cloud database pulled and merged successfully into local storage!',
+        type: 'success',
+      });
+    } else {
+      setFirebaseMsg({
+        text: 'Could not pull from Firebase. Please check internet connection or Firebase rules.',
+        type: 'error',
+      });
+    }
+  };
+
+  const handleConfirmDeleteApp = () => {
+    if (deleteConfirmationText.trim().toUpperCase() === 'DELETE') {
+      deleteEntireApp();
+    } else {
+      alert('Please type "DELETE" exactly to confirm app deletion.');
+    }
+  };
+
+  const handleAddSettingsCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = settingsCategoryInput.trim();
+    if (trimmed) {
+      addCategory(trimmed);
+      setSettingsCategoryInput('');
     }
   };
 
@@ -352,6 +431,53 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
+        {/* Section D2: Android & Web Application Deployment */}
+        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-sm text-white">{t('androidWebApp')}</h3>
+            </div>
+            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
+              PWA & Native APK Ready
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+              <span className="text-slate-400 block text-[11px]">Target Platforms</span>
+              <span className="font-semibold text-white block">Android, Web, Tablets</span>
+              <span className="text-[10px] text-slate-500 block">Responsive layout + touch POS</span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+              <span className="text-slate-400 block text-[11px]">Offline Persistence</span>
+              <span className="font-semibold text-emerald-400 block">100% IndexedDB Active</span>
+              <span className="text-[10px] text-slate-500 block">Zero-latency offline sales</span>
+            </div>
+
+            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+              <span className="text-slate-400 block text-[11px]">Hardware Access</span>
+              <span className="font-semibold text-teal-400 block">Camera Barcode Scanner</span>
+              <span className="text-[10px] text-slate-500 block">Thermal receipt printing</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+            <p className="text-[11px] text-slate-400 max-w-lg">
+              {t('installAppDesc')} Includes Web App Manifest, Service Worker precaching, and Google Bubblewrap / Capacitor APK packaging guides.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowAndroidModal(true)}
+              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors shadow-sm shrink-0 flex items-center justify-center gap-1.5"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>{t('installApp')}</span>
+            </button>
+          </div>
+        </div>
+
         {/* Section E: Database Backup & Restore */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
@@ -391,6 +517,170 @@ export const SettingsView: React.FC = () => {
                 />
               </label>
             </div>
+          </div>
+        </div>
+
+        {/* Section F: Cloud Database (Firebase Firestore) */}
+        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <Flame className="w-4 h-4 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm text-white">Cloud Database (Firebase Firestore)</h3>
+                <p className="text-[11px] text-slate-400">
+                  Project: <strong className="text-white font-mono">business-mind-bc746</strong> (Real-time Cloud Sync)
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Firebase Connected
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+              <span className="text-slate-400 block text-[11px]">Database Engine</span>
+              <span className="font-semibold text-white block">Google Cloud Firestore</span>
+              <span className="text-[10px] text-slate-500 block font-mono">business-mind-bc746</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+              <span className="text-slate-400 block text-[11px]">Sync Architecture</span>
+              <span className="font-semibold text-emerald-400 block">Bi-directional Offline-First</span>
+              <span className="text-[10px] text-slate-500 block">IndexedDB local + Cloud backup</span>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+              <span className="text-slate-400 block text-[11px]">Last Cloud Sync</span>
+              <span className="font-semibold text-white block truncate">
+                {lastFirebaseSync ? new Date(lastFirebaseSync).toLocaleTimeString() : 'Not synced yet'}
+              </span>
+              <span className="text-[10px] text-slate-500 block">Automatic on transaction</span>
+            </div>
+          </div>
+
+          {firebaseMsg && (
+            <div
+              className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
+                firebaseMsg.type === 'success'
+                  ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
+                  : 'bg-rose-950/60 border-rose-500/40 text-rose-300'
+              }`}
+            >
+              {firebaseMsg.type === 'success' ? (
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-400" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+              )}
+              <span>{firebaseMsg.text}</span>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <button
+              type="button"
+              onClick={handleSyncFirebase}
+              disabled={isFirebaseSyncing}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-colors shadow-sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isFirebaseSyncing ? 'animate-spin' : ''}`} />
+              <span>{isFirebaseSyncing ? 'Syncing to Firebase...' : 'Sync Local Data to Firebase'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handlePullFirebase}
+              disabled={isFirebaseSyncing}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors"
+            >
+              <Cloud className="w-3.5 h-3.5 text-blue-400" />
+              <span>Pull Data from Firebase</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Section G: Category Management */}
+        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Boxes className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-sm text-white">Category Management</h3>
+            </div>
+            <span className="text-xs text-slate-400">
+              {categories.length} Categories Active
+            </span>
+          </div>
+
+          <form onSubmit={handleAddSettingsCategory} className="flex gap-2">
+            <input
+              type="text"
+              value={settingsCategoryInput}
+              onChange={(e) => setSettingsCategoryInput(e.target.value)}
+              placeholder="Enter new category name..."
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+            />
+            <button
+              type="submit"
+              disabled={!settingsCategoryInput.trim()}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950 transition-colors shrink-0"
+            >
+              + Add Category
+            </button>
+          </form>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            {categories.map((cat) => (
+              <div
+                key={cat}
+                className="group pl-3 pr-2 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 flex items-center gap-2 text-xs text-slate-200 hover:border-slate-600 transition-colors"
+              >
+                <span>{cat}</span>
+                {categories.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm(`Delete category "${cat}"?`)) {
+                        deleteCategory(cat);
+                      }
+                    }}
+                    className="p-1 text-slate-500 hover:text-rose-400 rounded transition-colors"
+                    title={`Delete ${cat}`}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Section H: Danger Zone - Delete App & Data */}
+        <div className="p-5 rounded-2xl bg-rose-950/20 border border-rose-900/50 space-y-3 shadow-xs">
+          <div className="flex items-center gap-2 border-b border-rose-900/40 pb-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400" />
+            <h3 className="font-bold text-sm text-rose-300">Danger Zone: App Management</h3>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div>
+              <span className="font-bold text-white block">Delete App & Reset Database</span>
+              <p className="text-slate-400 text-[11px] max-w-lg mt-0.5">
+                Permanently wipes all local SQLite/IndexedDB records, sales, invoices, customer dues, and inventory. This will reset the app back to a fresh factory install.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteConfirmationText('');
+                setShowDeleteAppModal(true);
+              }}
+              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors shadow-sm shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete App & All Data</span>
+            </button>
           </div>
         </div>
 
@@ -462,37 +752,103 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section H: User Roles & Permissions Preview */}
+        {/* Section H: Admin Panel Account & Staff Access Control */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
-            <Shield className="w-4 h-4 text-emerald-400" />
-            <h3 className="font-bold text-sm text-white">{t('userRoles')}</h3>
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-emerald-400" />
+              <h3 className="font-bold text-sm text-white">Admin Panel Account & Staff Access</h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowLoginModal(true)}
+              className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors"
+            >
+              Sign In / Switch Staff Account
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {(['Owner', 'Admin', 'Manager', 'Sales Staff'] as const).map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setSelectedRole(role)}
-                className={`p-3 rounded-xl border text-left transition-colors ${
-                  selectedRole === role
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                    : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-white'
-                }`}
-              >
-                <span className="font-bold text-xs block">{role}</span>
-                <span className="text-[10px] text-slate-500 mt-0.5 block">
-                  {role === 'Owner'
-                    ? 'Full Root Access'
-                    : role === 'Admin'
-                    ? 'Managerial & Reports'
-                    : role === 'Manager'
-                    ? 'Stock & Inventory'
-                    : 'POS Terminal Only'}
-                </span>
-              </button>
-            ))}
+          {/* Active Administrator Card */}
+          <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-750 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-bold text-sm shadow-md">
+                AA
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-xs">Primary Admin Account</span>
+                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                    SUPER ADMIN
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px]">
+                  <span className="text-slate-300 font-mono">
+                    Username / Email: <strong className="text-white">abdullah286205@gmail.com</strong>
+                  </span>
+                  <span className="text-slate-400 font-mono">
+                    Password: <strong className="text-emerald-400">123456</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3" />
+                <span>Configured & Active</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Staff Accounts Registered */}
+          <div className="space-y-2 pt-1">
+            <span className="text-xs font-semibold text-slate-300 block">Registered Staff Users</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between"
+                >
+                  <div className="min-w-0">
+                    <span className="font-bold text-white block truncate">{u.name}</span>
+                    <span className="text-slate-400 text-[11px] font-mono block truncate">{u.email}</span>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                    {u.role}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Roles Selector */}
+          <div className="pt-2">
+            <span className="text-xs font-semibold text-slate-400 block mb-2">Role Permissions Matrix</span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(['Owner', 'Admin', 'Manager', 'Sales Staff'] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  onClick={() => setSelectedRole(role)}
+                  className={`p-3 rounded-xl border text-left transition-colors ${
+                    selectedRole === role
+                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+                      : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <span className="font-bold text-xs block">{role}</span>
+                  <span className="text-[10px] text-slate-500 mt-0.5 block">
+                    {role === 'Owner'
+                      ? 'Full Root Access'
+                      : role === 'Admin'
+                      ? 'Managerial & Reports'
+                      : role === 'Manager'
+                      ? 'Stock & Inventory'
+                      : 'POS Terminal Only'}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -507,6 +863,66 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Android & Web App Installation Modal */}
+      <AndroidWebModal
+        isOpen={showAndroidModal}
+        onClose={() => setShowAndroidModal(false)}
+      />
+
+      {/* Delete App Confirmation Modal */}
+      {showDeleteAppModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-rose-500/50 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-400 border-b border-rose-900/40 pb-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                <AlertTriangle className="w-6 h-6 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-white">Permanently Delete App & Data?</h3>
+                <p className="text-xs text-rose-300">Irreversible Action</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              This action will permanently delete all local SQLite/IndexedDB records, product variants, inventory counts, sales invoices, supplier purchase records, customer dues, and cloud sync logs.
+            </p>
+
+            <div className="space-y-1.5 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
+              <label className="block text-[11px] font-semibold text-slate-400">
+                Type <strong className="text-rose-400 font-mono">DELETE</strong> to confirm:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmationText}
+                onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full bg-slate-900 border border-rose-900/60 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-rose-500 focus:outline-none"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowDeleteAppModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteApp}
+                disabled={deleteConfirmationText.trim().toUpperCase() !== 'DELETE'}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white transition-colors shadow-md flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Confirm Delete App & Wipe Data</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

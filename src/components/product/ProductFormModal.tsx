@@ -7,6 +7,7 @@ import {
   Layers,
   Image as ImageIcon,
   Save,
+  Check,
 } from 'lucide-react';
 import { Product, ProductQuality, MeasurementUnit } from '../../types';
 import { useApp } from '../../context/AppContext';
@@ -53,15 +54,42 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   onSave,
   onUpdate,
 }) => {
-  const { t, settings } = useApp();
+  const { t, settings, categories, addCategory, deleteCategory } = useApp();
 
   const [name, setName] = useState(initialProduct?.name || '');
   const [code, setCode] = useState(initialProduct?.code || `SKU-${Date.now().toString().slice(-6)}`);
   const [barcode, setBarcode] = useState(initialProduct?.barcode || '');
-  const [category, setCategory] = useState(initialProduct?.category || 'Grains & Rice');
+  const [category, setCategory] = useState(initialProduct?.category || (categories?.[0] || 'Grains & Rice'));
   const [brand, setBrand] = useState(initialProduct?.brand || '');
   const [description, setDescription] = useState(initialProduct?.description || '');
   const [imageUrl, setImageUrl] = useState(initialProduct?.image_url || '');
+
+  // Category Add / Delete state
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [categoryDeleteConfirm, setCategoryDeleteConfirm] = useState(false);
+
+  const effectiveCategories = categories && categories.length > 0 ? categories : CATEGORIES;
+
+  const handleCreateCategory = () => {
+    const trimmed = newCategoryName.trim();
+    if (trimmed) {
+      addCategory(trimmed);
+      setCategory(trimmed);
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (effectiveCategories.length <= 1) return;
+    deleteCategory(catToDelete);
+    const remaining = effectiveCategories.filter((c) => c !== catToDelete);
+    if (remaining.length > 0) {
+      setCategory(remaining[0]);
+    }
+    setCategoryDeleteConfirm(false);
+  };
 
   // Qualities and size variants
   const [qualities, setQualities] = useState<ProductQuality[]>(
@@ -337,17 +365,108 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">
-                    {t('category')}
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-300">
+                      {t('category')}
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCategory((v) => !v);
+                          setCategoryDeleteConfirm(false);
+                        }}
+                        className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 transition-colors"
+                        title="Add New Category"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add</span>
+                      </button>
+                      {effectiveCategories.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCategoryDeleteConfirm((v) => !v);
+                            setIsAddingCategory(false);
+                          }}
+                          className="text-[11px] font-semibold text-rose-400 hover:text-rose-300 flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors"
+                          title={`Delete ${category}`}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {isAddingCategory && (
+                    <div className="mb-2 p-2 bg-slate-900 border border-emerald-500/40 rounded-lg flex items-center gap-1.5 animate-in fade-in duration-150">
+                      <input
+                        type="text"
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCreateCategory();
+                          }
+                        }}
+                        placeholder="Type new category..."
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded px-2.5 py-1 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={!newCategoryName.trim()}
+                        className="px-2 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded text-xs font-semibold flex items-center gap-1 transition-colors"
+                      >
+                        <Check className="w-3 h-3" />
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingCategory(false);
+                          setNewCategoryName('');
+                        }}
+                        className="p-1 text-slate-400 hover:text-white rounded hover:bg-slate-800 transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {categoryDeleteConfirm && (
+                    <div className="mb-2 p-2 bg-rose-950/70 border border-rose-500/40 rounded-lg flex items-center justify-between gap-2 text-xs text-rose-200 animate-in fade-in duration-150">
+                      <span className="truncate">Delete "{category}"?</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCategory(category)}
+                          className="px-2 py-0.5 bg-rose-600 hover:bg-rose-500 text-white rounded text-[11px] font-bold"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCategoryDeleteConfirm(false)}
+                          className="px-1.5 py-0.5 text-slate-300 hover:text-white text-[11px]"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
                   >
-                    {CATEGORIES.map((cat) => (
+                    {effectiveCategories.map((cat) => (
                       <option key={cat} value={cat}>
                         {cat}
                       </option>
