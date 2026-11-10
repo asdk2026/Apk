@@ -1,0 +1,6 @@
+{
+  "name": "Business Mind",
+  "description": "Complete Offline-First Retail Business Management System with Advanced POS, Multi-Variant Inventory, and Bilingual Support",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

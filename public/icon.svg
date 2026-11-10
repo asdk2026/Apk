@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+  <circle cx="256" cy="256" r="185" fill="url(#emeraldGrad)"/>
+  <!-- Business Mind Monogram & Financial Chart -->
+  <path d="M 180 150 L 250 150 C 290 150 320 175 320 205 C 320 225 305 242 285 250 C 315 258 335 280 335 315 C 335 355 300 375 250 375 L 180 375 Z" fill="none" stroke="#ffffff" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="180" y1="255" x2="280" y2="255" stroke="#ffffff" stroke-width="26" stroke-linecap="round"/>
+  <!-- Growth Sparkle -->
+  <circle cx="360" cy="155" r="22" fill="#fbbf24"/>
+</svg>
