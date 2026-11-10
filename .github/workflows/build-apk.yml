@@ -31,7 +31,8 @@ jobs:
           cache: "npm"
 
       - name: Install Node Dependencies
-        run: npm install
+        run: |
+             npm install
              npm install @capacitor/core @capacitor/android @capacitor/cli
              
       - name: Build Web Application
