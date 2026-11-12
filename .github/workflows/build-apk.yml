@@ -48,35 +48,36 @@ jobs:
       - name: Locate & Rename APK
         run: |
           mkdir -p release-output
-          cp android/app/build/outputs/apk/debug/app-debug.apk release-output/BusinessMind-v1.0.3.apk
-          ls -lh release-output/BusinessMind-v1.0.3.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk release-output/BusinessMind-v1.0.4.apk
+          ls -lh release-output/BusinessMind-v1.0.4.apk
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BusinessMind-v1.0.3-APK
-          path: release-output/BusinessMind-v1.0.3.apk
+          name: BusinessMind-v1.0.4-APK
+          path: release-output/BusinessMind-v1.0.4.apk
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: v1.0.3
-          name: "Business Mind v1.0.3 (Android APK - Live Auto-Update)"
+          tag_name: v1.0.4
+          name: "Business Mind v1.0.4 (Offline-First Android APK + Cloud Sync)"
           body: |
-            ## Business Mind - Official Android APK Release v1.0.3
+            ## Business Mind - Official Android APK Release v1.0.4
             
-            **Business Mind** Offline-First Retail Management System with Live Auto-Updates, Advanced POS, Multi-Variant Inventory, and Cloud Firestore Sync.
+            **Business Mind** Retail Business Management System with Standalone Offline-First Architecture, Cloud Firestore Synchronization, and Advanced POS.
             
-            ### Included in this build:
-            - **Live Cloud Auto-Update**: Native WebView configured with live server URL so future app updates appear instantly on your phone without downloading new APKs!
-            - **Fixed npm Dependency Resolution**: Resolved Vite and esbuild peer dependency conflict with `--legacy-peer-deps`.
-            - **Editable Base Price**: Click to edit product Base Price directly in invoices with real-time recalculations.
-            - **Package Qty Multiplier**: (+) and (−) stepper buttons for invoice line items.
-            - **Firebase Cloud Database Sync**: Interactive switch toggle for Manual ↔ Automatic Firestore sync.
+            ### Fixes & Enhancements in v1.0.4:
+            - **Fixed "Webpage not available" / ERR_HTTP_RESPONSE_CODE_FAILURE**: Packaged standalone offline-first assets directly inside the APK for instant loading without external cloud-run authentication blocks.
+            - **Firebase Cloud Database Sync**: Direct real-time bidirectional sync with Google Cloud Firestore (`business-mind-bc746`).
+            - **Invoice Section**:
+              - **Editable Base Price**: Click to edit Base Price directly in invoice line items with automatic recalculation.
+              - **Package Qty Multiplier**: (+) and (−) stepper buttons for invoice line items.
+            - **Settings**: Manual ↔ Automatic Cloud Database Sync toggle switch.
             
             ### Installation:
-            Download and install `BusinessMind-v1.0.3.apk` on your Android device (Android 7.0+).
-          files: release-output/BusinessMind-v1.0.3.apk
+            Download and install `BusinessMind-v1.0.4.apk` on any Android device (Android 7.0+).
+          files: release-output/BusinessMind-v1.0.4.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
