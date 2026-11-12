@@ -1,5 +1,14 @@
 {
   "appId": "com.businessmind.app",
   "appName": "Business Mind",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "url": "https://ais-pre-qkiqk34pyhybuq7e3mm3un-653577586134.asia-southeast1.run.app",
+    "cleartext": true,
+    "allowNavigation": [
+      "ais-pre-qkiqk34pyhybuq7e3mm3un-653577586134.asia-southeast1.run.app",
+      "*.firebaseio.com",
+      "*.googleapis.com"
+    ]
+  }
 }
