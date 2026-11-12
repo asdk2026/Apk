@@ -15,6 +15,8 @@ import {
   Package,
   Layers,
   ArrowRightLeft,
+  Minus,
+  Edit2,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product, ProductVariant, ProductQuality, InvoiceItem, Invoice } from '../../types';
@@ -111,6 +113,52 @@ export const InvoicePOS: React.FC = () => {
   };
 
   /**
+   * CRITICAL FEATURE 1: EDITABLE BASE PRICE
+   * When user clicks & edits the product's Base Price:
+   * 1. Updates item.base_price.
+   * 2. Recalculates unit_price and size/weight according to existing bidirectional logic.
+   * 3. Recalculates line_total = unit_price * package_quantity.
+   */
+  const handleBasePriceChange = (itemId: string, newBasePrice: number) => {
+    const validBasePrice = Math.max(0, newBasePrice);
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+
+        if (item.lastEditedField === 'price' && item.unit_price > 0 && validBasePrice > 0) {
+          const calculatedWeight = calculateWeightFromPrice(
+            item.unit_price,
+            validBasePrice,
+            item.base_size_weight,
+            3
+          );
+          const lineTotal = calculateLineTotal(item.unit_price, item.package_quantity);
+          return {
+            ...item,
+            base_price: validBasePrice,
+            selected_size_weight: calculatedWeight,
+            line_total: lineTotal,
+          };
+        } else {
+          const calculatedPrice = calculatePriceFromWeight(
+            item.selected_size_weight,
+            validBasePrice,
+            item.base_size_weight,
+            2
+          );
+          const lineTotal = calculateLineTotal(calculatedPrice, item.package_quantity);
+          return {
+            ...item,
+            base_price: validBasePrice,
+            unit_price: calculatedPrice,
+            line_total: lineTotal,
+          };
+        }
+      })
+    );
+  };
+
+  /**
    * CRITICAL FEATURE 5.D: BIDIRECTIONAL PRICE AND SIZE/WEIGHT CALCULATION
    * User edits Price -> automatically calculates Weight.
    */
@@ -168,12 +216,12 @@ export const InvoicePOS: React.FC = () => {
     );
   };
 
-  // Change package quantity multiplier
+  // Change package quantity multiplier (enforces min 1, updates line total)
   const handlePackageQuantityChange = (itemId: string, qty: number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id !== itemId) return item;
-        const safeQty = Math.max(1, qty || 1);
+        const safeQty = Math.max(1, isNaN(qty) ? 1 : qty);
         const lineTotal = calculateLineTotal(item.unit_price, safeQty);
         return {
           ...item,
@@ -409,14 +457,32 @@ export const InvoicePOS: React.FC = () => {
                             {item.product_name}
                           </h4>
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400 pl-7">
+                        <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-slate-400 pl-0 sm:pl-7">
                           <span className="font-medium text-emerald-300">
                             {item.quality_name}
                           </span>
                           <span>·</span>
                           <span className="font-mono text-slate-400">
-                            Base: {item.base_size_weight} {item.unit} @ {settings.currency}{item.base_price}
+                            Base: {item.base_size_weight} {item.unit}
                           </span>
+                          <span>·</span>
+                          {/* Clickable & Editable Base Price */}
+                          <div className="inline-flex items-center gap-1.5 bg-slate-900 border border-slate-700 hover:border-amber-500/70 focus-within:border-amber-500 rounded-lg px-2 py-0.5 transition-colors group cursor-pointer">
+                            <span className="text-[10px] text-amber-400 font-medium">Base Price:</span>
+                            <span className="text-slate-400 text-xs font-mono">{settings.currency}</span>
+                            <input
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={item.base_price}
+                              onChange={(e) =>
+                                handleBasePriceChange(item.id, parseFloat(e.target.value) || 0)
+                              }
+                              className="w-16 bg-transparent text-xs font-mono font-bold text-amber-300 focus:outline-none focus:text-white"
+                              title="Click to edit Base Price directly"
+                            />
+                            <Edit2 className="w-2.5 h-2.5 text-slate-500 group-hover:text-amber-400 shrink-0 pointer-events-none" />
+                          </div>
                         </div>
                       </div>
 
@@ -473,30 +539,55 @@ export const InvoicePOS: React.FC = () => {
                         />
                       </div>
 
-                      {/* Package Quantity Multiplier (Separate field) */}
+                      {/* Package Quantity Multiplier with (-) and (+) buttons */}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-slate-400">
-                          {t('pkgQty')} (Multiplier)
+                        <label className="text-[10px] font-semibold text-slate-400 flex items-center justify-between">
+                          <span>{t('pkgQty')} (Multiplier)</span>
+                          <span className="text-[9px] text-slate-500 font-mono">min 1</span>
                         </label>
-                        <input
-                          type="number"
-                          step="1"
-                          min="1"
-                          value={item.package_quantity}
-                          onChange={(e) =>
-                            handlePackageQuantityChange(item.id, parseInt(e.target.value, 10) || 1)
-                          }
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-emerald-500 focus:outline-none"
-                        />
+                        <div className="flex items-center rounded-lg bg-slate-900 border border-slate-700 overflow-hidden focus-within:border-emerald-500">
+                          <button
+                            type="button"
+                            onClick={() => handlePackageQuantityChange(item.id, item.package_quantity - 1)}
+                            disabled={item.package_quantity <= 1}
+                            className="w-7 h-8 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:hover:bg-transparent transition-colors font-bold text-sm shrink-0 border-r border-slate-800"
+                            title="Decrease Package Qty (-1)"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <input
+                            type="number"
+                            step="1"
+                            min="1"
+                            value={item.package_quantity}
+                            onChange={(e) =>
+                              handlePackageQuantityChange(item.id, Math.max(1, parseInt(e.target.value, 10) || 1))
+                            }
+                            className="w-full bg-transparent px-1 py-1.5 text-xs text-center text-white font-mono font-bold focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handlePackageQuantityChange(item.id, item.package_quantity + 1)}
+                            className="w-7 h-8 flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 transition-colors font-bold text-sm shrink-0 border-l border-slate-800"
+                            title="Increase Package Qty (+1)"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Line Total */}
+                      {/* Line Total & Total Calculated Size/Weight */}
                       <div className="space-y-1">
-                        <label className="text-[10px] font-semibold text-slate-400">
-                          {t('lineTotal')}
+                        <label className="text-[10px] font-semibold text-slate-400 flex items-center justify-between">
+                          <span>{t('lineTotal')}</span>
+                          <span className="text-[9px] text-emerald-400 font-mono">
+                            {(item.selected_size_weight * item.package_quantity).toFixed(2)} {item.unit}
+                          </span>
                         </label>
-                        <div className="h-8 rounded-lg bg-slate-950 px-2.5 py-1.5 flex items-center justify-end font-mono font-bold text-sm text-white border border-slate-800">
-                          {settings.currency}{item.line_total.toFixed(2)}
+                        <div className="h-8 rounded-lg bg-slate-950 px-2.5 py-1.5 flex flex-col justify-center items-end border border-slate-800">
+                          <span className="font-mono font-bold text-xs sm:text-sm text-white">
+                            {settings.currency}{item.line_total.toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     </div>

@@ -8,9 +8,12 @@ import {
   X,
   Package,
   Layers,
+  ShieldCheck,
+  User,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { Product } from '../../types';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   onSelectProduct?: (product: Product) => void;
@@ -31,6 +34,8 @@ export const Header: React.FC<HeaderProps> = ({ onSelectProduct }) => {
     globalSearchQuery,
     setGlobalSearchQuery,
     setActiveModule,
+    currentUser,
+    setShowLoginModal,
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -200,8 +205,38 @@ export const Header: React.FC<HeaderProps> = ({ onSelectProduct }) => {
         )}
       </div>
 
-      {/* Zone 3: Sync Button, Language Switcher, Notifications */}
+      {/* Zone 3: Install App, Sync Button, Language Switcher, Notifications */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* PWA / Android App Install */}
+        <PWAInstallButton variant="compact" />
+
+        {/* Admin Account Button */}
+        <button
+          onClick={() => setShowLoginModal(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white border border-slate-700/60 transition-colors"
+          title={
+            currentUser
+              ? `Signed in as ${currentUser.name} (${currentUser.role})`
+              : 'Sign in to Admin Panel'
+          }
+        >
+          {currentUser ? (
+            <div className="flex items-center gap-1.5">
+              <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[9px] flex items-center justify-center border border-emerald-500/40">
+                {currentUser.name.slice(0, 1)}
+              </span>
+              <span className="font-semibold text-white max-w-[100px] truncate">
+                Admin
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1 text-slate-400 hover:text-white">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">Admin</span>
+            </div>
+          )}
+        </button>
+
         {/* Sync Status Button */}
         <button
           onClick={triggerSyncNow}

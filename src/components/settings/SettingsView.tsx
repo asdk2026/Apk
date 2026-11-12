@@ -49,6 +49,8 @@ export const SettingsView: React.FC = () => {
     addCategory,
     deleteCategory,
     firebaseSyncStatus,
+    autoFirebaseSync,
+    setAutoFirebaseSync,
     syncToFirebase,
     syncFromFirebase,
     lastFirebaseSync,
@@ -542,6 +544,68 @@ export const SettingsView: React.FC = () => {
             </div>
           </div>
 
+          {/* Switch Button: Manual ↔ Automatic Cloud Database Sync */}
+          <div className="p-4 rounded-xl bg-slate-800/90 border border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-white uppercase tracking-wider">Sync Mode</span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    autoFirebaseSync
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  }`}
+                >
+                  {autoFirebaseSync ? '● Automatic Mode' : '○ Manual Mode'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300">
+                {autoFirebaseSync
+                  ? 'Automatic sync is enabled. All sales invoices, product edits, customers and stock changes automatically sync to Firestore.'
+                  : 'Manual mode enabled. Changes remain local until you click the "Sync Local Data to Firebase" button below.'}
+              </p>
+            </div>
+
+            {/* Interactive Switch Button */}
+            <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+              <span
+                onClick={() => setAutoFirebaseSync(false)}
+                className={`text-xs font-semibold cursor-pointer select-none transition-colors ${
+                  !autoFirebaseSync ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Manual
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoFirebaseSync}
+                onClick={() => setAutoFirebaseSync(!autoFirebaseSync)}
+                className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
+                  autoFirebaseSync
+                    ? 'bg-emerald-600 border-emerald-500'
+                    : 'bg-slate-700 border-slate-600'
+                }`}
+              >
+                <span className="sr-only">Toggle Cloud Database Automatic Sync</span>
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none inline-block h-5.5 w-5.5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out mt-[1px] ml-[1px] ${
+                    autoFirebaseSync ? 'translate-x-6' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+              <span
+                onClick={() => setAutoFirebaseSync(true)}
+                className={`text-xs font-semibold cursor-pointer select-none transition-colors ${
+                  autoFirebaseSync ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Automatic
+              </span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
             <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
               <span className="text-slate-400 block text-[11px]">Database Engine</span>
@@ -558,7 +622,9 @@ export const SettingsView: React.FC = () => {
               <span className="font-semibold text-white block truncate">
                 {lastFirebaseSync ? new Date(lastFirebaseSync).toLocaleTimeString() : 'Not synced yet'}
               </span>
-              <span className="text-[10px] text-slate-500 block">Automatic on transaction</span>
+              <span className="text-[10px] text-slate-500 block">
+                {autoFirebaseSync ? 'Auto-synced with cloud' : 'Awaiting manual trigger'}
+              </span>
             </div>
           </div>
 

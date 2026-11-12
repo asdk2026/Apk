@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Product,
   Customer,
@@ -124,6 +124,8 @@ interface AppContextType {
 
   // Cloud Database Firebase
   firebaseSyncStatus: 'connected' | 'syncing' | 'synced' | 'error' | 'disconnected';
+  autoFirebaseSync: boolean;
+  setAutoFirebaseSync: (enabled: boolean) => void;
   syncToFirebase: () => Promise<boolean>;
   syncFromFirebase: () => Promise<boolean>;
   lastFirebaseSync: string | null;
@@ -190,6 +192,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [lastFirebaseSync, setLastFirebaseSync] = useState<string | null>(() => {
     return localStorage.getItem('bm_last_fb_sync') || null;
   });
+  const [autoFirebaseSync, setAutoFirebaseSyncState] = useState<boolean>(() => {
+    const saved = localStorage.getItem('bm_auto_firebase_sync');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  const setAutoFirebaseSync = useCallback((enabled: boolean) => {
+    setAutoFirebaseSyncState(enabled);
+    localStorage.setItem('bm_auto_firebase_sync', String(enabled));
+  }, []);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
@@ -1087,6 +1098,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
+  // Automatic Firebase Sync effect: When auto-sync is enabled and online, debounce sync to Firebase on changes
+  const hasMountedFirebaseRef = useRef(false);
+  useEffect(() => {
+    if (!hasMountedFirebaseRef.current) {
+      hasMountedFirebaseRef.current = true;
+      return;
+    }
+    if (!autoFirebaseSync || !navigator.onLine) return;
+    const timer = setTimeout(() => {
+      syncToFirebase();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [autoFirebaseSync, products, customers, suppliers, invoices, expenses, categories, settings, syncToFirebase]);
+
   const deleteEntireApp = useCallback(() => {
     deleteAppAndData();
     window.location.reload();
@@ -1151,6 +1176,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCategory,
       deleteCategory,
       firebaseSyncStatus,
+      autoFirebaseSync,
+      setAutoFirebaseSync,
       syncToFirebase,
       syncFromFirebase,
       lastFirebaseSync,
@@ -1210,6 +1237,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addCategory,
       deleteCategory,
       firebaseSyncStatus,
+      autoFirebaseSync,
+      setAutoFirebaseSync,
       syncToFirebase,
       syncFromFirebase,
       lastFirebaseSync,
