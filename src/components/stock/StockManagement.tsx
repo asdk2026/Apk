@@ -22,7 +22,11 @@ export const StockManagement: React.FC = () => {
     products,
     stockMovements,
     adjustStock,
+    hasActionPermission,
   } = useApp();
+
+  const canAdjustStock = hasActionPermission('canAdjustStock');
+  const canViewCost = hasActionPermission('canViewProfitLoss');
 
   const [activeTab, setActiveTab] = useState<'inventory' | 'movements'>('inventory');
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,10 +196,10 @@ export const StockManagement: React.FC = () => {
                     <th className="py-3 px-4">{t('productName')}</th>
                     <th className="py-3 px-4">{t('qualityName')}</th>
                     <th className="py-3 px-4">{t('sizeWeight')}</th>
-                    <th className="py-3 px-4 text-right">Cost Price</th>
+                    {canViewCost && <th className="py-3 px-4 text-right">Cost Price</th>}
                     <th className="py-3 px-4 text-right">Selling Price</th>
                     <th className="py-3 px-4 text-right">{t('availableStock')}</th>
-                    <th className="py-3 px-4 text-center">Action</th>
+                    {canAdjustStock && <th className="py-3 px-4 text-center">Action</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/80 text-slate-200">
@@ -211,9 +215,11 @@ export const StockManagement: React.FC = () => {
                       <td className="py-3 px-4 font-mono">
                         {item.sizeWeight} {item.unit}
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-slate-400">
-                        {settings.currency}{item.purchasePrice}
-                      </td>
+                      {canViewCost && (
+                        <td className="py-3 px-4 text-right font-mono text-slate-400">
+                          {settings.currency}{item.purchasePrice}
+                        </td>
+                      )}
                       <td className="py-3 px-4 text-right font-mono font-bold text-white">
                         {settings.currency}{item.sellingPrice}
                       </td>
@@ -227,24 +233,26 @@ export const StockManagement: React.FC = () => {
                           {item.isLowStock && <AlertTriangle className="w-3 h-3" />}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center whitespace-nowrap">
-                        <button
-                          onClick={() =>
-                            setAdjustingItem({
-                              productId: item.productId,
-                              productName: item.productName,
-                              variantId: item.variantId,
-                              variantName: `${item.qualityName} (${item.sizeWeight} ${item.unit})`,
-                              currentStock: item.stockQuantity,
-                              unit: item.unit,
-                            })
-                          }
-                          className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-[11px] inline-flex items-center gap-1"
-                        >
-                          <SlidersHorizontal className="w-3 h-3 text-emerald-400" />
-                          <span>{t('stockAdjustment')}</span>
-                        </button>
-                      </td>
+                      {canAdjustStock && (
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <button
+                            onClick={() =>
+                              setAdjustingItem({
+                                productId: item.productId,
+                                productName: item.productName,
+                                variantId: item.variantId,
+                                variantName: `${item.qualityName} (${item.sizeWeight} ${item.unit})`,
+                                currentStock: item.stockQuantity,
+                                unit: item.unit,
+                              })
+                            }
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium text-[11px] inline-flex items-center gap-1"
+                          >
+                            <SlidersHorizontal className="w-3 h-3 text-emerald-400" />
+                            <span>{t('stockAdjustment')}</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

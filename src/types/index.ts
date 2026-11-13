@@ -246,17 +246,55 @@ export type AppNavigationModule =
   | 'reports'
   | 'barcode'
   | 'expenses'
-  | 'settings';
+  | 'settings'
+  | 'admin';
 
-export type UserRole = 'Owner' | 'Admin' | 'Manager' | 'Sales Staff';
+export type FirebaseUserRole = 'admin' | 'manager' | 'user';
+
+export interface ModulePermissions {
+  home: boolean;
+  product: boolean;
+  invoice: boolean;
+  sales_history: boolean;
+  customers: boolean;
+  stock: boolean;
+  purchases: boolean;
+  due: boolean;
+  pnl: boolean;
+  reports: boolean;
+  barcode: boolean;
+  expenses: boolean;
+  settings: boolean;
+}
+
+export interface ActionPermissions {
+  canAddEditProduct: boolean;
+  canDeleteProduct: boolean;
+  canEditInvoicePrice: boolean;
+  canApplyDiscount: boolean;
+  canCancelInvoice: boolean;
+  canAdjustStock: boolean;
+  canViewProfitLoss: boolean;
+  canManageExpenses: boolean;
+  canManageCloudSync: boolean;
+}
+
+export interface UserPermissions {
+  modules: ModulePermissions;
+  actions: ActionPermissions;
+}
 
 export interface UserAccount {
-  id: string;
+  uid: string;
   name: string;
   email: string;
-  password?: string;
-  role: UserRole;
+  role: FirebaseUserRole;
   phone?: string;
+  isActive: boolean;
+  permissions: UserPermissions;
   created_at: string;
+  created_by?: string;
+  updated_at?: string;
   last_login?: string;
 }
+

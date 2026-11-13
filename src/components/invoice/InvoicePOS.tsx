@@ -39,7 +39,11 @@ export const InvoicePOS: React.FC = () => {
     settings,
     customers,
     createInvoice,
+    hasActionPermission,
   } = useApp();
+
+  const canEditPrice = hasActionPermission('canEditInvoicePrice');
+  const canApplyDiscount = hasActionPermission('canApplyDiscount');
 
   // Selected Customer state
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('walk-in');
@@ -467,21 +471,30 @@ export const InvoicePOS: React.FC = () => {
                           </span>
                           <span>·</span>
                           {/* Clickable & Editable Base Price */}
-                          <div className="inline-flex items-center gap-1.5 bg-slate-900 border border-slate-700 hover:border-amber-500/70 focus-within:border-amber-500 rounded-lg px-2 py-0.5 transition-colors group cursor-pointer">
+                          <div className="inline-flex items-center gap-1.5 bg-slate-900 border border-slate-700 hover:border-amber-500/70 focus-within:border-amber-500 rounded-lg px-2 py-0.5 transition-colors group">
                             <span className="text-[10px] text-amber-400 font-medium">Base Price:</span>
                             <span className="text-slate-400 text-xs font-mono">{settings.currency}</span>
                             <input
                               type="number"
                               step="any"
                               min="0"
+                              readOnly={!canEditPrice}
+                              disabled={!canEditPrice}
                               value={item.base_price}
                               onChange={(e) =>
+                                canEditPrice &&
                                 handleBasePriceChange(item.id, parseFloat(e.target.value) || 0)
                               }
-                              className="w-16 bg-transparent text-xs font-mono font-bold text-amber-300 focus:outline-none focus:text-white"
-                              title="Click to edit Base Price directly"
+                              className="w-16 bg-transparent text-xs font-mono font-bold text-amber-300 focus:outline-none focus:text-white disabled:opacity-70 disabled:cursor-not-allowed"
+                              title={
+                                canEditPrice
+                                  ? 'Click to edit Base Price directly'
+                                  : 'Price editing restricted by Admin'
+                              }
                             />
-                            <Edit2 className="w-2.5 h-2.5 text-slate-500 group-hover:text-amber-400 shrink-0 pointer-events-none" />
+                            {canEditPrice && (
+                              <Edit2 className="w-2.5 h-2.5 text-slate-500 group-hover:text-amber-400 shrink-0 pointer-events-none" />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -531,11 +544,15 @@ export const InvoicePOS: React.FC = () => {
                           type="number"
                           step="any"
                           min="0"
+                          readOnly={!canEditPrice}
+                          disabled={!canEditPrice}
                           value={item.unit_price}
                           onChange={(e) =>
+                            canEditPrice &&
                             handlePriceChange(item.id, parseFloat(e.target.value) || 0)
                           }
-                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-emerald-400 font-mono font-bold focus:border-emerald-500 focus:outline-none"
+                          title={canEditPrice ? 'Editable Unit Price' : 'Price editing restricted by Admin'}
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-emerald-400 font-mono font-bold focus:border-emerald-500 focus:outline-none disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                       </div>
 
@@ -626,12 +643,15 @@ export const InvoicePOS: React.FC = () => {
               {/* Discount Input */}
               <div className="pt-2 border-t border-slate-800 space-y-1.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">{t('discount')}:</span>
+                  <span className="text-slate-400">
+                    {t('discount')}: {!canApplyDiscount && <span className="text-[10px] text-amber-400">(Restricted)</span>}
+                  </span>
                   <div className="flex items-center gap-1 bg-slate-800 p-0.5 rounded">
                     <button
                       type="button"
-                      onClick={() => setDiscountType('fixed')}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                      disabled={!canApplyDiscount}
+                      onClick={() => canApplyDiscount && setDiscountType('fixed')}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold disabled:opacity-50 ${
                         discountType === 'fixed'
                           ? 'bg-emerald-500 text-slate-950'
                           : 'text-slate-400'
@@ -641,8 +661,9 @@ export const InvoicePOS: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDiscountType('percentage')}
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                      disabled={!canApplyDiscount}
+                      onClick={() => canApplyDiscount && setDiscountType('percentage')}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-semibold disabled:opacity-50 ${
                         discountType === 'percentage'
                           ? 'bg-emerald-500 text-slate-950'
                           : 'text-slate-400'
@@ -655,10 +676,13 @@ export const InvoicePOS: React.FC = () => {
                 <input
                   type="number"
                   min="0"
+                  disabled={!canApplyDiscount}
                   value={discountValue}
-                  onChange={(e) => setDiscountValue(parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    canApplyDiscount && setDiscountValue(parseFloat(e.target.value) || 0)
+                  }
                   placeholder="Discount value"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono text-right"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-mono text-right disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 

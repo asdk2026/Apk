@@ -36,7 +36,12 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onOpenPosWithProdu
     addProduct,
     updateProduct,
     deleteProduct,
+    hasModuleAccess,
+    hasActionPermission,
   } = useApp();
+
+  const canAddEditProduct = hasActionPermission('canAddEditProduct');
+  const canDeleteProduct = hasActionPermission('canDeleteProduct');
 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -193,18 +198,22 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onOpenPosWithProdu
 
             {/* Quick Action CTAs */}
             <div className="flex items-center gap-2 shrink-0 pt-2 md:pt-0 self-end md:self-center">
-              <button
-                onClick={() => setActiveModule('purchases')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors shadow-sm"
-              >
-                <span>{t('restockNow')}</span>
-              </button>
-              <button
-                onClick={() => setActiveModule('stock')}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 transition-colors"
-              >
-                <span>{t('viewLowStock')}</span>
-              </button>
+              {hasModuleAccess('purchases') && (
+                <button
+                  onClick={() => setActiveModule('purchases')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors shadow-sm"
+                >
+                  <span>{t('restockNow')}</span>
+                </button>
+              )}
+              {hasModuleAccess('stock') && (
+                <button
+                  onClick={() => setActiveModule('stock')}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 transition-colors"
+                >
+                  <span>{t('viewLowStock')}</span>
+                </button>
+              )}
               <button
                 onClick={() => setBannerDismissed(true)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
@@ -266,9 +275,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onOpenPosWithProdu
 
         {/* Low Stock Alerts */}
         <div
-          onClick={() => setActiveModule('stock')}
-          className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-amber-500/50 shadow-sm relative overflow-hidden cursor-pointer transition-all group"
-          title="Click to inspect low stock items"
+          onClick={() => hasModuleAccess('stock') && setActiveModule('stock')}
+          className={`p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm relative overflow-hidden transition-all group ${
+            hasModuleAccess('stock') ? 'hover:border-amber-500/50 cursor-pointer' : ''
+          }`}
+          title={hasModuleAccess('stock') ? 'Click to inspect low stock items' : undefined}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-slate-400 group-hover:text-amber-300 transition-colors">
@@ -299,71 +310,83 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onOpenPosWithProdu
 
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
           {/* New Invoice POS */}
-          <button
-            onClick={() => setActiveModule('invoice')}
-            className="p-3 rounded-xl bg-gradient-to-br from-emerald-600/25 to-teal-700/20 border border-emerald-500/30 hover:border-emerald-500 flex flex-col items-center justify-center text-center transition-all group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center mb-1.5 shadow-md group-hover:scale-105 transition-transform">
-              <Receipt className="w-5 h-5 font-bold" />
-            </div>
-            <span className="text-xs font-bold text-white">{t('invoice')}</span>
-            <span className="text-[10px] text-emerald-400 font-mono">POS</span>
-          </button>
+          {hasModuleAccess('invoice') && (
+            <button
+              onClick={() => setActiveModule('invoice')}
+              className="p-3 rounded-xl bg-gradient-to-br from-emerald-600/25 to-teal-700/20 border border-emerald-500/30 hover:border-emerald-500 flex flex-col items-center justify-center text-center transition-all group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center mb-1.5 shadow-md group-hover:scale-105 transition-transform">
+                <Receipt className="w-5 h-5 font-bold" />
+              </div>
+              <span className="text-xs font-bold text-white">{t('invoice')}</span>
+              <span className="text-[10px] text-emerald-400 font-mono">POS</span>
+            </button>
+          )}
 
           {/* Add Product */}
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-emerald-400 transition-colors">
-              <Plus className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold text-slate-200">{t('addProduct')}</span>
-          </button>
+          {canAddEditProduct && hasModuleAccess('product') && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-emerald-400 transition-colors">
+                <Plus className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-slate-200">{t('addProduct')}</span>
+            </button>
+          )}
 
           {/* Barcode Scanner */}
-          <button
-            onClick={() => setActiveModule('barcode')}
-            className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-teal-400 transition-colors">
-              <ScanBarcode className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold text-slate-200">{t('barcode')}</span>
-          </button>
+          {hasModuleAccess('barcode') && (
+            <button
+              onClick={() => setActiveModule('barcode')}
+              className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-teal-400 transition-colors">
+                <ScanBarcode className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-slate-200">{t('barcode')}</span>
+            </button>
+          )}
 
           {/* Stock Balances */}
-          <button
-            onClick={() => setActiveModule('stock')}
-            className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-blue-400 transition-colors">
-              <Boxes className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold text-slate-200">{t('stock')}</span>
-          </button>
+          {hasModuleAccess('stock') && (
+            <button
+              onClick={() => setActiveModule('stock')}
+              className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-blue-400 transition-colors">
+                <Boxes className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-slate-200">{t('stock')}</span>
+            </button>
+          )}
 
           {/* Due Management */}
-          <button
-            onClick={() => setActiveModule('due')}
-            className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-amber-400 transition-colors">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold text-slate-200">{t('due')}</span>
-          </button>
+          {hasModuleAccess('due') && (
+            <button
+              onClick={() => setActiveModule('due')}
+              className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-amber-400 transition-colors">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-slate-200">{t('due')}</span>
+            </button>
+          )}
 
           {/* Record Expense */}
-          <button
-            onClick={() => setActiveModule('expenses')}
-            className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
-          >
-            <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-purple-400 transition-colors">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold text-slate-200">{t('expenses')}</span>
-          </button>
+          {hasModuleAccess('expenses') && (
+            <button
+              onClick={() => setActiveModule('expenses')}
+              className="p-3 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 flex flex-col items-center justify-center text-center transition-all group"
+            >
+              <div className="w-9 h-9 rounded-lg bg-slate-800 text-slate-200 flex items-center justify-center mb-1.5 group-hover:text-purple-400 transition-colors">
+                <Wallet className="w-5 h-5" />
+              </div>
+              <span className="text-xs font-semibold text-slate-200">{t('expenses')}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -382,20 +405,24 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onOpenPosWithProdu
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{t('addProduct')}</span>
-            </button>
-            <button
-              onClick={() => setActiveModule('product')}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
-            >
-              <span>{t('viewAll')}</span>
-              <ArrowRight className="w-3 h-3 text-slate-400" />
-            </button>
+            {canAddEditProduct && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-sm transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>{t('addProduct')}</span>
+              </button>
+            )}
+            {hasModuleAccess('product') && (
+              <button
+                onClick={() => setActiveModule('product')}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+              >
+                <span>{t('viewAll')}</span>
+                <ArrowRight className="w-3 h-3 text-slate-400" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -544,25 +571,31 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({ onOpenPosWithProdu
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
           onEdit={(prod) => {
+            if (!canAddEditProduct) return;
             setSelectedProduct(null);
             setEditingProduct(prod);
           }}
           onDelete={(id) => {
+            if (!canDeleteProduct) return;
             deleteProduct(id);
             setSelectedProduct(null);
           }}
-          onSell={(prod) => {
-            if (onOpenPosWithProduct) {
-              onOpenPosWithProduct(prod);
-            } else {
-              setActiveModule('invoice');
-            }
-          }}
+          onSell={
+            hasModuleAccess('invoice')
+              ? (prod) => {
+                  if (onOpenPosWithProduct) {
+                    onOpenPosWithProduct(prod);
+                  } else {
+                    setActiveModule('invoice');
+                  }
+                }
+              : undefined
+          }
         />
       )}
 
       {/* Add / Edit Product Modal */}
-      {(showAddModal || editingProduct) && (
+      {(showAddModal || editingProduct) && canAddEditProduct && (
         <ProductFormModal
           initialProduct={editingProduct}
           onClose={() => {

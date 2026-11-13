@@ -28,7 +28,8 @@ const EXPENSE_CATEGORIES = [
 ];
 
 export const ExpenseManagement: React.FC = () => {
-  const { t, settings, expenses, addExpense, deleteExpense } = useApp();
+  const { t, settings, expenses, addExpense, deleteExpense, hasActionPermission } = useApp();
+  const canManageExpenses = hasActionPermission('canManageExpenses');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -96,13 +97,15 @@ export const ExpenseManagement: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t('addExpense')}</span>
-        </button>
+        {canManageExpenses && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition-all self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('addExpense')}</span>
+          </button>
+        )}
       </div>
 
       {/* Summary KPI */}
@@ -171,7 +174,7 @@ export const ExpenseManagement: React.FC = () => {
                   <th className="py-3 px-4">Method</th>
                   <th className="py-3 px-4 text-right">{t('expenseAmount')}</th>
                   <th className="py-3 px-4">Notes</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+                  {canManageExpenses && <th className="py-3 px-4 text-center">Action</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 text-slate-200">
@@ -193,19 +196,21 @@ export const ExpenseManagement: React.FC = () => {
                     <td className="py-3 px-4 text-slate-400 text-[11px] max-w-xs truncate">
                       {exp.notes || '-'}
                     </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        onClick={() => {
-                          if (confirm(`Delete expense "${exp.title}"?`)) {
-                            deleteExpense(exp.id);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-400"
-                        title="Delete Expense"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
+                    {canManageExpenses && (
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete expense "${exp.title}"?`)) {
+                              deleteExpense(exp.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-400"
+                          title="Delete Expense"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

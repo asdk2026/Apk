@@ -28,9 +28,13 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
   onDelete,
   onSell,
 }) => {
-  const { t, settings } = useApp();
+  const { t, settings, hasActionPermission } = useApp();
 
   if (!product) return null;
+
+  const canEdit = hasActionPermission('canAddEditProduct');
+  const canDelete = hasActionPermission('canDeleteProduct');
+  const canViewCost = hasActionPermission('canViewProfitLoss');
 
   const totalStock = product.qualities.reduce(
     (acc, q) => acc + q.variants.reduce((vAcc, v) => vAcc + v.stock_quantity, 0),
@@ -142,9 +146,11 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
                               </span>
                             )}
                           </div>
-                          <span className="text-[11px] text-slate-400 block mt-0.5">
-                            Cost: {settings.currency}{v.purchase_price}
-                          </span>
+                          {canViewCost && (
+                            <span className="text-[11px] text-slate-400 block mt-0.5">
+                              Cost: {settings.currency}{v.purchase_price}
+                            </span>
+                          )}
                         </div>
                         <div className="text-right">
                           <span className="font-mono font-bold text-emerald-400 text-sm block">
@@ -175,25 +181,29 @@ export const ProductDetailsModal: React.FC<ProductDetailsModalProps> = ({
         {/* Footer Actions */}
         <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => onEdit(product)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
-            >
-              <Edit2 className="w-3.5 h-3.5 text-blue-400" />
-              <span>{t('edit')}</span>
-            </button>
-            <button
-              onClick={() => {
-                if (confirm(`Are you sure you want to delete ${product.name}?`)) {
-                  onDelete(product.id);
-                  onClose();
-                }
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{t('delete')}</span>
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => onEdit(product)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-blue-400" />
+                <span>{t('edit')}</span>
+              </button>
+            )}
+            {canDelete && (
+              <button
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete ${product.name}?`)) {
+                    onDelete(product.id);
+                    onClose();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{t('delete')}</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

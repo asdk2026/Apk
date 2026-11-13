@@ -28,6 +28,7 @@ export const translations = {
     barcode: 'Barcode Scanner',
     expenses: 'Expenses',
     settings: 'Settings',
+    adminPanel: 'Admin Panel',
     more: 'More',
     quickActions: 'Quick Actions',
 
@@ -233,9 +234,6 @@ export const translations = {
     adminRole: 'Admin (Managerial Access)',
     managerRole: 'Manager (Inventory & Sales)',
     salesRole: 'Sales Staff (POS Only)',
-    installApp: 'Install App (Android & Web)',
-    androidWebApp: 'Android & Web App',
-    installAppDesc: 'Install Business Mind on Android, tablets, or desktop with 100% offline access.',
   },
 
   bn: {
@@ -265,6 +263,7 @@ export const translations = {
     barcode: 'বারকোড স্ক্যানার',
     expenses: 'ব্যয় / খরচ',
     settings: 'সেটিংস',
+    adminPanel: 'অ্যাডমিন প্যানেল',
     more: 'আরও',
     quickActions: 'দ্রুত অ্যাকশন',
 
@@ -470,8 +469,5 @@ export const translations = {
     adminRole: 'অ্যাডমিন (ম্যানেজারিয়াল)',
     managerRole: 'ম্যানেজার (স্টক ও সেলস)',
     salesRole: 'বিক্রয় কর্মী (শুধু পিওএস)',
-    installApp: 'অ্যাপ ইন্সটল করুন (অ্যান্ড্রয়েড ও ওয়েব)',
-    androidWebApp: 'অ্যান্ড্রয়েড ও ওয়েব অ্যাপ',
-    installAppDesc: 'অ্যান্ড্রয়েড ফোন, ট্যাবলেট বা কম্পিউটারে ১০০% অফলাইন সুবিধাসহ ইন্সটল করুন।',
   },
 };

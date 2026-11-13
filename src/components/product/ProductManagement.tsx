@@ -30,7 +30,11 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onOpenPosW
     deleteProduct,
     duplicateProduct,
     setActiveModule,
+    hasActionPermission,
   } = useApp();
+
+  const canAddEdit = hasActionPermission('canAddEditProduct');
+  const canDelete = hasActionPermission('canDeleteProduct');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -112,13 +116,15 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onOpenPosW
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition-all self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{t('addProduct')}</span>
-        </button>
+        {canAddEdit && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition-all self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{t('addProduct')}</span>
+          </button>
+        )}
       </div>
 
       {/* Filter & Search Bar */}
@@ -286,31 +292,37 @@ export const ProductManagement: React.FC<ProductManagementProps> = ({ onOpenPosW
                     >
                       <Eye className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => setEditProduct(product)}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300"
-                      title={t('edit')}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => duplicateProduct(product.id)}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
-                      title={t('duplicate')}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete product ${product.name}?`)) {
-                          deleteProduct(product.id);
-                        }
-                      }}
-                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-400"
-                      title={t('delete')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {canAddEdit && (
+                      <>
+                        <button
+                          onClick={() => setEditProduct(product)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300"
+                          title={t('edit')}
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => duplicateProduct(product.id)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white"
+                          title={t('duplicate')}
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete product ${product.name}?`)) {
+                            deleteProduct(product.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-rose-400"
+                        title={t('delete')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
 
                   <button

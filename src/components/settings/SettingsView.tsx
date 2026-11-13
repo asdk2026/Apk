@@ -15,17 +15,15 @@ import {
   Boxes,
   Save,
   CheckCircle,
-  RotateCcw,
-  Smartphone,
   Trash2,
   AlertTriangle,
   RefreshCw,
   Cloud,
   Flame,
+  ShieldCheck,
+  Sliders,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { Language } from '../../utils/i18n';
-import { AndroidWebModal } from '../common/AndroidWebModal';
 
 export const SettingsView: React.FC = () => {
   const {
@@ -44,6 +42,9 @@ export const SettingsView: React.FC = () => {
     importDatabaseJson,
     currentUser,
     users,
+    isAdmin,
+    hasActionPermission,
+    setActiveModule,
     setShowLoginModal,
     categories,
     addCategory,
@@ -54,8 +55,9 @@ export const SettingsView: React.FC = () => {
     syncToFirebase,
     syncFromFirebase,
     lastFirebaseSync,
-    deleteEntireApp,
   } = useApp();
+
+  const canManageCloudSync = hasActionPermission('canManageCloudSync');
 
   // Local form states
   const [businessName, setBusinessName] = useState(settings.business_name);
@@ -70,10 +72,6 @@ export const SettingsView: React.FC = () => {
   const [lowStockThreshold, setLowStockThreshold] = useState(settings.low_stock_threshold);
   const [allowNegativeStock, setAllowNegativeStock] = useState(settings.allow_negative_stock);
   const [autoSync, setAutoSync] = useState(settings.auto_sync);
-  const [showAndroidModal, setShowAndroidModal] = useState(false);
-
-  // Active Role tab
-  const [selectedRole, setSelectedRole] = useState<'Owner' | 'Admin' | 'Manager' | 'Sales Staff'>('Owner');
 
   // Save changes
   const handleSaveProfile = (e: React.FormEvent) => {
@@ -131,11 +129,10 @@ export const SettingsView: React.FC = () => {
   // Firebase Cloud Database handlers
   const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
   const [firebaseMsg, setFirebaseMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [showDeleteAppModal, setShowDeleteAppModal] = useState(false);
-  const [deleteConfirmationText, setDeleteConfirmationText] = useState('');
   const [settingsCategoryInput, setSettingsCategoryInput] = useState('');
 
   const handleSyncFirebase = async () => {
+    if (!canManageCloudSync) return;
     setIsFirebaseSyncing(true);
     setFirebaseMsg(null);
     const ok = await syncToFirebase();
@@ -154,6 +151,7 @@ export const SettingsView: React.FC = () => {
   };
 
   const handlePullFirebase = async () => {
+    if (!canManageCloudSync) return;
     setIsFirebaseSyncing(true);
     setFirebaseMsg(null);
     const ok = await syncFromFirebase();
@@ -168,14 +166,6 @@ export const SettingsView: React.FC = () => {
         text: 'Could not pull from Firebase. Please check internet connection or Firebase rules.',
         type: 'error',
       });
-    }
-  };
-
-  const handleConfirmDeleteApp = () => {
-    if (deleteConfirmationText.trim().toUpperCase() === 'DELETE') {
-      deleteEntireApp();
-    } else {
-      alert('Please type "DELETE" exactly to confirm app deletion.');
     }
   };
 
@@ -433,53 +423,6 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section D2: Android & Web Application Deployment */}
-        <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-            <div className="flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-sm text-white">{t('androidWebApp')}</h3>
-            </div>
-            <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
-              PWA & Native APK Ready
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <span className="text-slate-400 block text-[11px]">Target Platforms</span>
-              <span className="font-semibold text-white block">Android, Web, Tablets</span>
-              <span className="text-[10px] text-slate-500 block">Responsive layout + touch POS</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <span className="text-slate-400 block text-[11px]">Offline Persistence</span>
-              <span className="font-semibold text-emerald-400 block">100% IndexedDB Active</span>
-              <span className="text-[10px] text-slate-500 block">Zero-latency offline sales</span>
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
-              <span className="text-slate-400 block text-[11px]">Hardware Access</span>
-              <span className="font-semibold text-teal-400 block">Camera Barcode Scanner</span>
-              <span className="text-[10px] text-slate-500 block">Thermal receipt printing</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-            <p className="text-[11px] text-slate-400 max-w-lg">
-              {t('installAppDesc')} Includes Web App Manifest, Service Worker precaching, and Google Bubblewrap / Capacitor APK packaging guides.
-            </p>
-            <button
-              type="button"
-              onClick={() => setShowAndroidModal(true)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors shadow-sm shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>{t('installApp')}</span>
-            </button>
-          </div>
-        </div>
-
         {/* Section E: Database Backup & Restore */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 shadow-xs">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
@@ -569,8 +512,10 @@ export const SettingsView: React.FC = () => {
             {/* Interactive Switch Button */}
             <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
               <span
-                onClick={() => setAutoFirebaseSync(false)}
-                className={`text-xs font-semibold cursor-pointer select-none transition-colors ${
+                onClick={() => canManageCloudSync && setAutoFirebaseSync(false)}
+                className={`text-xs font-semibold select-none transition-colors ${
+                  canManageCloudSync ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                } ${
                   !autoFirebaseSync ? 'text-amber-400 font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -580,11 +525,12 @@ export const SettingsView: React.FC = () => {
                 type="button"
                 role="switch"
                 aria-checked={autoFirebaseSync}
-                onClick={() => setAutoFirebaseSync(!autoFirebaseSync)}
-                className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/40 ${
+                disabled={!canManageCloudSync}
+                onClick={() => canManageCloudSync && setAutoFirebaseSync(!autoFirebaseSync)}
+                className={`relative inline-flex h-7 w-13 shrink-0 rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-50 disabled:cursor-not-allowed ${
                   autoFirebaseSync
-                    ? 'bg-emerald-600 border-emerald-500'
-                    : 'bg-slate-700 border-slate-600'
+                    ? 'bg-emerald-600 border-emerald-500 cursor-pointer'
+                    : 'bg-slate-700 border-slate-600 cursor-pointer'
                 }`}
               >
                 <span className="sr-only">Toggle Cloud Database Automatic Sync</span>
@@ -596,8 +542,10 @@ export const SettingsView: React.FC = () => {
                 />
               </button>
               <span
-                onClick={() => setAutoFirebaseSync(true)}
-                className={`text-xs font-semibold cursor-pointer select-none transition-colors ${
+                onClick={() => canManageCloudSync && setAutoFirebaseSync(true)}
+                className={`text-xs font-semibold select-none transition-colors ${
+                  canManageCloudSync ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'
+                } ${
                   autoFirebaseSync ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -649,7 +597,7 @@ export const SettingsView: React.FC = () => {
             <button
               type="button"
               onClick={handleSyncFirebase}
-              disabled={isFirebaseSyncing}
+              disabled={isFirebaseSyncing || !canManageCloudSync}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white transition-colors shadow-sm"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isFirebaseSyncing ? 'animate-spin' : ''}`} />
@@ -659,12 +607,18 @@ export const SettingsView: React.FC = () => {
             <button
               type="button"
               onClick={handlePullFirebase}
-              disabled={isFirebaseSyncing}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition-colors"
+              disabled={isFirebaseSyncing || !canManageCloudSync}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 disabled:opacity-50 border border-slate-700 text-slate-200 transition-colors"
             >
               <Cloud className="w-3.5 h-3.5 text-blue-400" />
               <span>Pull Data from Firebase</span>
             </button>
+
+            {!canManageCloudSync && (
+              <span className="text-[11px] text-amber-400">
+                Cloud sync controls are restricted to authorized accounts.
+              </span>
+            )}
           </div>
         </div>
 
@@ -720,33 +674,6 @@ export const SettingsView: React.FC = () => {
                 )}
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Section H: Danger Zone - Delete App & Data */}
-        <div className="p-5 rounded-2xl bg-rose-950/20 border border-rose-900/50 space-y-3 shadow-xs">
-          <div className="flex items-center gap-2 border-b border-rose-900/40 pb-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400" />
-            <h3 className="font-bold text-sm text-rose-300">Danger Zone: App Management</h3>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div>
-              <span className="font-bold text-white block">Delete App & Reset Database</span>
-              <p className="text-slate-400 text-[11px] max-w-lg mt-0.5">
-                Permanently wipes all local SQLite/IndexedDB records, sales, invoices, customer dues, and inventory. This will reset the app back to a fresh factory install.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setDeleteConfirmationText('');
-                setShowDeleteAppModal(true);
-              }}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition-colors shadow-sm shrink-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Delete App & All Data</span>
-            </button>
           </div>
         </div>
 
@@ -818,104 +745,59 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Section H: Admin Panel Account & Staff Access Control */}
+        {/* Section H: Firebase Admin System & Staff Access Control */}
         <div className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-emerald-400" />
-              <h3 className="font-bold text-sm text-white">Admin Panel Account & Staff Access</h3>
+              <h3 className="font-bold text-sm text-white">Firebase Admin System & Staff Access</h3>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowLoginModal(true)}
-              className="px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition-colors"
-            >
-              Sign In / Switch Staff Account
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowLoginModal(true)}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-750 text-slate-200 border border-slate-700 transition-colors"
+              >
+                View My Permissions
+              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setActiveModule('admin')}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors flex items-center gap-1.5"
+                >
+                  <Sliders className="w-3.5 h-3.5" />
+                  <span>Manage Users & Access ({users.length})</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Active Administrator Card */}
-          <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-750 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 font-bold text-sm shadow-md">
-                AA
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">Primary Admin Account</span>
-                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
-                    SUPER ADMIN
-                  </span>
+          {currentUser && (
+            <div className="p-4 rounded-xl bg-slate-800/80 border border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300 font-bold text-sm">
+                  {currentUser.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[11px]">
-                  <span className="text-slate-300 font-mono">
-                    Username / Email: <strong className="text-white">abdullah286205@gmail.com</strong>
-                  </span>
-                  <span className="text-slate-400 font-mono">
-                    Password: <strong className="text-emerald-400">123456</strong>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-white text-xs">{currentUser.name}</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono">
+                      {currentUser.role}
+                    </span>
+                  </div>
+                  <span className="text-slate-400 font-mono text-[11px] block mt-0.5">
+                    {currentUser.email}
                   </span>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" />
-                <span>Configured & Active</span>
+              <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 flex items-center gap-1 self-start sm:self-center">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Firebase Auth Verified</span>
               </span>
             </div>
-          </div>
-
-          {/* Staff Accounts Registered */}
-          <div className="space-y-2 pt-1">
-            <span className="text-xs font-semibold text-slate-300 block">Registered Staff Users</span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between"
-                >
-                  <div className="min-w-0">
-                    <span className="font-bold text-white block truncate">{u.name}</span>
-                    <span className="text-slate-400 text-[11px] font-mono block truncate">{u.email}</span>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
-                    {u.role}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Roles Selector */}
-          <div className="pt-2">
-            <span className="text-xs font-semibold text-slate-400 block mb-2">Role Permissions Matrix</span>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {(['Owner', 'Admin', 'Manager', 'Sales Staff'] as const).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setSelectedRole(role)}
-                  className={`p-3 rounded-xl border text-left transition-colors ${
-                    selectedRole === role
-                      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-                      : 'bg-slate-800/80 border-slate-700/60 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <span className="font-bold text-xs block">{role}</span>
-                  <span className="text-[10px] text-slate-500 mt-0.5 block">
-                    {role === 'Owner'
-                      ? 'Full Root Access'
-                      : role === 'Admin'
-                      ? 'Managerial & Reports'
-                      : role === 'Manager'
-                      ? 'Stock & Inventory'
-                      : 'POS Terminal Only'}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Save Bar */}
@@ -929,66 +811,6 @@ export const SettingsView: React.FC = () => {
           </button>
         </div>
       </form>
-
-      {/* Android & Web App Installation Modal */}
-      <AndroidWebModal
-        isOpen={showAndroidModal}
-        onClose={() => setShowAndroidModal(false)}
-      />
-
-      {/* Delete App Confirmation Modal */}
-      {showDeleteAppModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-rose-500/50 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
-            <div className="flex items-center gap-3 text-rose-400 border-b border-rose-900/40 pb-3">
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-                <AlertTriangle className="w-6 h-6 text-rose-500" />
-              </div>
-              <div>
-                <h3 className="font-bold text-base text-white">Permanently Delete App & Data?</h3>
-                <p className="text-xs text-rose-300">Irreversible Action</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              This action will permanently delete all local SQLite/IndexedDB records, product variants, inventory counts, sales invoices, supplier purchase records, customer dues, and cloud sync logs.
-            </p>
-
-            <div className="space-y-1.5 bg-slate-950/80 p-3 rounded-xl border border-slate-800">
-              <label className="block text-[11px] font-semibold text-slate-400">
-                Type <strong className="text-rose-400 font-mono">DELETE</strong> to confirm:
-              </label>
-              <input
-                type="text"
-                value={deleteConfirmationText}
-                onChange={(e) => setDeleteConfirmationText(e.target.value)}
-                placeholder="DELETE"
-                className="w-full bg-slate-900 border border-rose-900/60 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-rose-500 focus:outline-none"
-                autoFocus
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setShowDeleteAppModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDeleteApp}
-                disabled={deleteConfirmationText.trim().toUpperCase() !== 'DELETE'}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white transition-colors shadow-md flex items-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Confirm Delete App & Wipe Data</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

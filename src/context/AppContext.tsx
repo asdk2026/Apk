@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import {
   Product,
   Customer,
@@ -12,6 +13,9 @@ import {
   SyncLog,
   AppNavigationModule,
   UserAccount,
+  FirebaseUserRole,
+  UserPermissions,
+  ActionPermissions,
 } from '../types';
 import {
   STORAGE_KEYS,
@@ -24,16 +28,24 @@ import {
   INITIAL_INVOICES,
   INITIAL_EXPENSES,
   INITIAL_SYNC_LOGS,
-  INITIAL_USERS,
   INITIAL_CATEGORIES,
-  deleteAppAndData,
   initDatabase,
 } from '../utils/db';
 import {
+  getFirebaseAuth,
+  testFirestoreConnection,
+  resolveAuthorizedUserProfile,
+  signInWithFirebaseEmail,
+  signInWithFirebaseGoogle,
+  bootstrapRootAdminAccount,
+  signOutFirebase,
+  createStaffUserByAdmin,
+  updateStaffUserByAdmin,
+  deleteStaffUserByAdmin,
+  subscribeToCurrentUserProfile,
+  subscribeToAllUsers,
   syncStoreToFirebase,
   fetchStoreFromFirebase,
-  deleteProductFromCloud,
-  firebaseConfig,
 } from '../utils/firebase';
 import { translations, Language } from '../utils/i18n';
 
@@ -106,14 +118,32 @@ interface AppContextType {
   // Quick Navigation shortcut helper
   openProductInPos?: (product: Product) => void;
 
-  // Admin & User Authentication
+  // Firebase Authentication & RBAC
+  authLoading: boolean;
+  authError: string | null;
+  clearAuthError: () => void;
   currentUser: UserAccount | null;
   users: UserAccount[];
-  login: (email: string, password: string) => { success: boolean; error?: string };
-  logout: () => void;
-  addUser: (user: Omit<UserAccount, 'id' | 'created_at'>) => void;
-  updateUser: (user: UserAccount) => void;
-  deleteUser: (id: string) => void;
+  isAdmin: boolean;
+  hasModuleAccess: (module: AppNavigationModule) => boolean;
+  hasActionPermission: (action: keyof ActionPermissions) => boolean;
+  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>;
+  bootstrapRootAdmin: (email: string, password: string, name: string) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  createStaffUser: (params: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    role: FirebaseUserRole;
+    permissions: UserPermissions;
+  }) => Promise<{ success: boolean; error?: string }>;
+  updateStaffUser: (
+    uid: string,
+    updates: Partial<Pick<UserAccount, 'name' | 'phone' | 'role' | 'isActive' | 'permissions'>>
+  ) => Promise<{ success: boolean; error?: string }>;
+  deleteStaffUser: (uid: string) => Promise<{ success: boolean; error?: string }>;
   showLoginModal: boolean;
   setShowLoginModal: (show: boolean) => void;
 
@@ -129,15 +159,11 @@ interface AppContextType {
   syncToFirebase: () => Promise<boolean>;
   syncFromFirebase: () => Promise<boolean>;
   lastFirebaseSync: string | null;
-
-  // System Wipe / Delete App
-  deleteEntireApp: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Ensure DB is initialized
   initDatabase();
 
   const [activeModule, setActiveModule] = useState<AppNavigationModule>('home');
@@ -175,12 +201,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>(() =>
     getLocal<SyncLog[]>(STORAGE_KEYS.SYNC_LOGS, INITIAL_SYNC_LOGS)
   );
-  const [users, setUsers] = useState<UserAccount[]>(() =>
-    getLocal<UserAccount[]>(STORAGE_KEYS.USERS, INITIAL_USERS)
-  );
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() =>
-    getLocal<UserAccount | null>(STORAGE_KEYS.CURRENT_USER, INITIAL_USERS[0])
-  );
+
+  // Firebase Auth & RBAC state
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [users, setUsers] = useState<UserAccount[]>([]);
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [categories, setCategories] = useState<string[]>(() =>
@@ -205,7 +231,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 'notif_1',
-      title: 'Welcome to Business Mind! Offline-First database is active.',
+      title: 'Welcome to Business Mind! Firebase Cloud RBAC & Offline database active.',
       time: 'Just now',
       type: 'info',
     },
@@ -216,6 +242,139 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'warning',
     },
   ]);
+
+  const clearAuthError = useCallback(() => setAuthError(null), []);
+
+  // Test Firestore connection on mount
+  useEffect(() => {
+    testFirestoreConnection();
+  }, []);
+
+  // Listen to Firebase Auth + Real-Time Firestore Profile
+  useEffect(() => {
+    const auth = getFirebaseAuth();
+    let unsubscribeProfile: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+
+      if (!fbUser) {
+        setCurrentUser(null);
+        setUsers([]);
+        setAuthLoading(false);
+        return;
+      }
+
+      setAuthLoading(true);
+      try {
+        const resolved = await resolveAuthorizedUserProfile(fbUser);
+        setCurrentUser(resolved);
+        setAuthError(null);
+
+        // Live listener on current user's profile so permission/role/active changes apply immediately
+        unsubscribeProfile = subscribeToCurrentUserProfile(
+          fbUser.uid,
+          (liveUser) => {
+            if (!liveUser) {
+              setAuthError('Your account profile was removed by Admin.');
+              setCurrentUser(null);
+              signOutFirebase().catch(() => {});
+              return;
+            }
+            if (!liveUser.isActive) {
+              setAuthError('Your account has been suspended by Admin.');
+              setCurrentUser(null);
+              signOutFirebase().catch(() => {});
+              return;
+            }
+            setCurrentUser(liveUser);
+          },
+          (err) => {
+            console.warn('Profile subscription warning:', err);
+          }
+        );
+      } catch (err: any) {
+        setCurrentUser(null);
+        setAuthError(err?.message || 'Access Denied. Only Admin can create accounts.');
+      } finally {
+        setAuthLoading(false);
+      }
+    });
+
+    return () => {
+      if (unsubscribeProfile) unsubscribeProfile();
+      unsubscribeAuth();
+    };
+  }, []);
+
+  // Subscribe to all users list ONLY when signed in as Admin
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'admin') {
+      setUsers([]);
+      return;
+    }
+
+    const unsubscribeUsers = subscribeToAllUsers(
+      (list) => {
+        setUsers(list);
+      },
+      (err) => {
+        console.warn('Users subscription warning:', err);
+      }
+    );
+
+    return () => unsubscribeUsers();
+  }, [currentUser?.uid, currentUser?.role]);
+
+  const isAdmin = currentUser?.role === 'admin';
+
+  const hasModuleAccess = useCallback(
+    (module: AppNavigationModule): boolean => {
+      if (!currentUser) return false;
+      if (module === 'admin') return currentUser.role === 'admin';
+      if (currentUser.role === 'admin') return true;
+      return Boolean(currentUser.permissions?.modules?.[module]);
+    },
+    [currentUser]
+  );
+
+  const hasActionPermission = useCallback(
+    (action: keyof ActionPermissions): boolean => {
+      if (!currentUser) return false;
+      if (currentUser.role === 'admin') return true;
+      return Boolean(currentUser.permissions?.actions?.[action]);
+    },
+    [currentUser]
+  );
+
+  // If current user's active module becomes restricted in real time, redirect to first permitted module
+  useEffect(() => {
+    if (!currentUser) return;
+    if (!hasModuleAccess(activeModule)) {
+      const candidateOrder: AppNavigationModule[] = [
+        'home',
+        'invoice',
+        'product',
+        'sales_history',
+        'customers',
+        'due',
+        'stock',
+        'purchases',
+        'barcode',
+        'expenses',
+        'reports',
+        'pnl',
+        'settings',
+      ];
+      const firstAllowed = candidateOrder.find((m) => hasModuleAccess(m));
+      if (firstAllowed) {
+        setActiveModule(firstAllowed);
+      }
+    }
+  }, [currentUser, activeModule, hasModuleAccess]);
 
   // Online / Offline listener
   useEffect(() => {
@@ -281,7 +440,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
-  // Trigger sync
   const triggerSyncNow = useCallback(async () => {
     setSyncStatus('syncing');
     await new Promise((res) => setTimeout(res, 900));
@@ -401,7 +559,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     [customers]
   );
 
-  // Receive Customer Payment
   const receiveCustomerPayment = useCallback(
     (
       customerId: string,
@@ -422,7 +579,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setCustomers(updatedCustomers);
       setLocal(STORAGE_KEYS.CUSTOMERS, updatedCustomers);
 
-      // Record Payment
       const newPayment: PaymentRecord = {
         id: `pay_${Date.now()}`,
         business_id: settings.business_id,
@@ -440,7 +596,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPayments(updatedPayments);
       setLocal(STORAGE_KEYS.PAYMENTS, updatedPayments);
 
-      // If specific invoice is targeted, update invoice paid amount
       if (invoiceId) {
         const inv = invoices.find((i) => i.id === invoiceId);
         if (inv) {
@@ -551,7 +706,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setInvoices(updatedInvoices);
       setLocal(STORAGE_KEYS.INVOICES, updatedInvoices);
 
-      // Decrement stock for each item & record stock movement
       const updatedProducts = [...products];
       const newMovements: StockMovement[] = [];
 
@@ -598,7 +752,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStockMovements(allMovements);
       setLocal(STORAGE_KEYS.STOCK_MOVEMENTS, allMovements);
 
-      // Update customer total purchases and due if customer selected
       if (newInvoice.customer_id) {
         const custIndex = customers.findIndex((c) => c.id === newInvoice.customer_id);
         if (custIndex >= 0) {
@@ -613,7 +766,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // Record payment entry if paid amount > 0
       if (newInvoice.paid_amount > 0) {
         const paymentRecord: PaymentRecord = {
           id: `pay_inv_${Date.now()}`,
@@ -654,7 +806,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setInvoices(updatedInvoices);
       setLocal(STORAGE_KEYS.INVOICES, updatedInvoices);
 
-      // Re-increment stock
       const updatedProducts = [...products];
       const newMovements: StockMovement[] = [];
       const now = new Date().toISOString();
@@ -698,7 +849,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStockMovements(allMovements);
       setLocal(STORAGE_KEYS.STOCK_MOVEMENTS, allMovements);
 
-      // Revert customer due
       if (inv.customer_id) {
         const custIndex = customers.findIndex((c) => c.id === inv.customer_id);
         if (custIndex >= 0) {
@@ -736,7 +886,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setPurchases(updatedPurchases);
       setLocal(STORAGE_KEYS.PURCHASES, updatedPurchases);
 
-      // Increase stock for purchased items
       const updatedProducts = [...products];
       const newMovements: StockMovement[] = [];
 
@@ -779,7 +928,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStockMovements(allMovements);
       setLocal(STORAGE_KEYS.STOCK_MOVEMENTS, allMovements);
 
-      // Update supplier due
       if (newPurchase.supplier_id) {
         const suppIndex = suppliers.findIndex((s) => s.id === newPurchase.supplier_id);
         if (suppIndex >= 0) {
@@ -954,70 +1102,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Authentication & Staff User Management
-  const login = useCallback(
-    (email: string, password: string) => {
-      const trimmedEmail = email.toLowerCase().trim();
-      const found = users.find((u) => u.email.toLowerCase().trim() === trimmedEmail);
-      if (!found) {
-        return { success: false, error: 'User account not found.' };
-      }
-      if (found.password && found.password !== password) {
-        return { success: false, error: 'Incorrect password. Please try again.' };
-      }
-      const updatedUser = { ...found, last_login: new Date().toISOString() };
-      setCurrentUser(updatedUser);
-      setLocal(STORAGE_KEYS.CURRENT_USER, updatedUser);
+  // Firebase Auth Actions
+  const loginWithEmail = useCallback(async (email: string, password: string) => {
+    setAuthError(null);
+    try {
+      const profile = await signInWithFirebaseEmail(email, password);
+      setCurrentUser(profile);
       return { success: true };
-    },
-    [users]
-  );
+    } catch (err: any) {
+      const msg = err?.message || 'Sign in failed.';
+      setAuthError(msg);
+      return { success: false, error: msg };
+    }
+  }, []);
 
-  const logout = useCallback(() => {
+  const loginWithGoogle = useCallback(async () => {
+    setAuthError(null);
+    try {
+      const profile = await signInWithFirebaseGoogle();
+      setCurrentUser(profile);
+      return { success: true };
+    } catch (err: any) {
+      const msg = err?.message || 'Google sign in failed.';
+      setAuthError(msg);
+      return { success: false, error: msg };
+    }
+  }, []);
+
+  const bootstrapRootAdmin = useCallback(async (email: string, password: string, name: string) => {
+    setAuthError(null);
+    try {
+      const profile = await bootstrapRootAdminAccount(email, password, name);
+      setCurrentUser(profile);
+      return { success: true };
+    } catch (err: any) {
+      const msg = err?.message || 'Root Admin setup failed.';
+      setAuthError(msg);
+      return { success: false, error: msg };
+    }
+  }, []);
+
+  const logout = useCallback(async () => {
+    await signOutFirebase();
     setCurrentUser(null);
-    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    setUsers([]);
+    setShowLoginModal(false);
+    setActiveModule('home');
   }, []);
 
-  const addUser = useCallback((userData: Omit<UserAccount, 'id' | 'created_at'>) => {
-    const newUser: UserAccount = {
-      ...userData,
-      id: `user_${Date.now()}`,
-      created_at: new Date().toISOString(),
-    };
-    setUsers((prev) => {
-      const next = [...prev, newUser];
-      setLocal(STORAGE_KEYS.USERS, next);
-      return next;
-    });
-  }, []);
-
-  const updateUser = useCallback(
-    (updated: UserAccount) => {
-      setUsers((prev) => {
-        const next = prev.map((u) => (u.id === updated.id ? updated : u));
-        setLocal(STORAGE_KEYS.USERS, next);
-        return next;
-      });
-      if (currentUser?.id === updated.id) {
-        setCurrentUser(updated);
-        setLocal(STORAGE_KEYS.CURRENT_USER, updated);
+  const createStaffUser = useCallback(
+    async (params: {
+      name: string;
+      email: string;
+      password: string;
+      phone?: string;
+      role: FirebaseUserRole;
+      permissions: UserPermissions;
+    }) => {
+      if (!currentUser || currentUser.role !== 'admin') {
+        return { success: false, error: 'Unauthorized: Only Admin can create accounts.' };
+      }
+      try {
+        await createStaffUserByAdmin({
+          ...params,
+          adminUid: currentUser.uid,
+        });
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to create account.' };
       }
     },
     [currentUser]
   );
 
-  const deleteUser = useCallback(
-    (id: string) => {
-      setUsers((prev) => {
-        const next = prev.filter((u) => u.id !== id);
-        setLocal(STORAGE_KEYS.USERS, next);
-        return next;
-      });
-      if (currentUser?.id === id) {
-        logout();
+  const updateStaffUser = useCallback(
+    async (
+      uid: string,
+      updates: Partial<Pick<UserAccount, 'name' | 'phone' | 'role' | 'isActive' | 'permissions'>>
+    ) => {
+      if (!currentUser || currentUser.role !== 'admin') {
+        return { success: false, error: 'Unauthorized: Only Admin can update access controls.' };
+      }
+      try {
+        await updateStaffUserByAdmin(uid, updates);
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to update account.' };
       }
     },
-    [currentUser, logout]
+    [currentUser]
+  );
+
+  const deleteStaffUser = useCallback(
+    async (uid: string) => {
+      if (!currentUser || currentUser.role !== 'admin') {
+        return { success: false, error: 'Unauthorized: Only Admin can delete accounts.' };
+      }
+      if (uid === currentUser.uid) {
+        return { success: false, error: 'You cannot delete your own active Admin account.' };
+      }
+      try {
+        await deleteStaffUserByAdmin(uid);
+        return { success: true };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Failed to delete user.' };
+      }
+    },
+    [currentUser]
   );
 
   const addCategory = useCallback((newCat: string) => {
@@ -1098,24 +1289,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Automatic Firebase Sync effect: When auto-sync is enabled and online, debounce sync to Firebase on changes
+  // Automatic Firebase Sync effect: Only sync automatically when signed in and autoFirebaseSync is enabled
   const hasMountedFirebaseRef = useRef(false);
   useEffect(() => {
     if (!hasMountedFirebaseRef.current) {
       hasMountedFirebaseRef.current = true;
       return;
     }
-    if (!autoFirebaseSync || !navigator.onLine) return;
+    if (!currentUser || !autoFirebaseSync || !navigator.onLine) return;
     const timer = setTimeout(() => {
       syncToFirebase();
     }, 2000);
     return () => clearTimeout(timer);
-  }, [autoFirebaseSync, products, customers, suppliers, invoices, expenses, categories, settings, syncToFirebase]);
-
-  const deleteEntireApp = useCallback(() => {
-    deleteAppAndData();
-    window.location.reload();
-  }, []);
+  }, [
+    currentUser,
+    autoFirebaseSync,
+    products,
+    customers,
+    suppliers,
+    invoices,
+    expenses,
+    categories,
+    settings,
+    syncToFirebase,
+  ]);
 
   const value = useMemo(
     () => ({
@@ -1163,13 +1360,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSettings,
       exportDatabaseJson,
       importDatabaseJson,
+      authLoading,
+      authError,
+      clearAuthError,
       currentUser,
       users,
-      login,
+      isAdmin,
+      hasModuleAccess,
+      hasActionPermission,
+      loginWithEmail,
+      loginWithGoogle,
+      bootstrapRootAdmin,
       logout,
-      addUser,
-      updateUser,
-      deleteUser,
+      createStaffUser,
+      updateStaffUser,
+      deleteStaffUser,
       showLoginModal,
       setShowLoginModal,
       categories,
@@ -1181,7 +1386,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       syncToFirebase,
       syncFromFirebase,
       lastFirebaseSync,
-      deleteEntireApp,
     }),
     [
       activeModule,
@@ -1224,13 +1428,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateSettings,
       exportDatabaseJson,
       importDatabaseJson,
+      authLoading,
+      authError,
+      clearAuthError,
       currentUser,
       users,
-      login,
+      isAdmin,
+      hasModuleAccess,
+      hasActionPermission,
+      loginWithEmail,
+      loginWithGoogle,
+      bootstrapRootAdmin,
       logout,
-      addUser,
-      updateUser,
-      deleteUser,
+      createStaffUser,
+      updateStaffUser,
+      deleteStaffUser,
       showLoginModal,
       setShowLoginModal,
       categories,
@@ -1242,7 +1454,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       syncToFirebase,
       syncFromFirebase,
       lastFirebaseSync,
-      deleteEntireApp,
     ]
   );
 

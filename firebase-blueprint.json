@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Firebase authenticated staff or admin account with module & action RBAC permissions.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "Full display name" },
+        "email": { "type": "string", "format": "email", "description": "Account login email" },
+        "role": { "type": "string", "enum": ["admin", "manager", "user"], "description": "Assigned role" },
+        "phone": { "type": "string", "description": "Optional staff phone number" },
+        "isActive": { "type": "boolean", "description": "Whether account can sign in and access data" },
+        "permissions": {
+          "type": "object",
+          "description": "Granular module and action permissions controlled by Admin"
+        },
+        "created_at": { "type": "string", "format": "date-time" },
+        "created_by": { "type": "string" },
+        "updated_at": { "type": "string", "format": "date-time" },
+        "last_login": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role", "isActive", "permissions", "created_at"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Fast role-check record for admin users.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "created_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "auth": {
+    "providers": ["password", "google.com"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Admin-managed user profiles and granular permissions"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Admin authorization registry"
+    },
+    "/invited_users/{emailKey}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Optional pre-authorized emails managed by Admin"
+    },
+    "/products/{productId}": {
+      "schema": { "type": "object" },
+      "description": "Store product catalog"
+    },
+    "/customers/{customerId}": {
+      "schema": { "type": "object" },
+      "description": "Store customer directory"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": { "type": "object" },
+      "description": "Store supplier directory"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": { "type": "object" },
+      "description": "Sales invoices"
+    },
+    "/expenses/{expenseId}": {
+      "schema": { "type": "object" },
+      "description": "Shop operating expenses"
+    },
+    "/system/{docId}": {
+      "schema": { "type": "object" },
+      "description": "Business settings and categories metadata"
+    }
+  }
+}

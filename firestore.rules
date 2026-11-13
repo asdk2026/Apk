@@ -1,0 +1,153 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (Firebase Auth UID)
+    // Fields:
+    //   - uid: string (required)
+    //   - name: string (required)
+    //   - email: string (required)
+    //   - role: 'admin' | 'manager' | 'user' (required)
+    //   - phone: string (optional)
+    //   - isActive: bool (required)
+    //   - permissions: { modules: map, actions: map } (required)
+    //   - created_at: string
+    //   - created_by: string
+    //   - updated_at: string
+    //   - last_login: string
+    //
+    // Collection: admins
+    // Document ID: {adminId} (Firebase Auth UID)
+    //
+    // Collection: invited_users
+    // Document ID: {emailKey}
+    //
+    // Store Collections: products, customers, suppliers, invoices, expenses, system
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isRootAdmin() {
+      return isAuthenticated()
+        && request.auth.token.email == 'abdullah286205@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && (
+        isRootAdmin()
+        || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        || (
+          exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true
+        )
+      );
+    }
+
+    function isActiveStaff() {
+      return isAuthenticated()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isActive == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUserDoc(data, userId) {
+      return data.uid is string
+        && data.uid == userId
+        && data.name is string
+        && data.name.size() > 0
+        && data.email is string
+        && data.email.size() > 0
+        && data.role in ['admin', 'manager', 'user']
+        && data.isActive is bool
+        && data.permissions is map
+        && data.permissions.modules is map
+        && data.permissions.actions is map;
+    }
+
+    // Connection health check document
+    match /test/connection {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Admin-controlled Staff & Role Permissions directory
+    match /users/{userId} {
+      allow read: if isAdmin() || isOwner(userId);
+      allow create: if isValidUserDoc(request.resource.data, userId)
+        && (
+          isAdmin()
+          || (
+            isOwner(userId)
+            && request.auth.token.email == 'abdullah286205@gmail.com'
+            && request.resource.data.role == 'admin'
+          )
+        );
+      allow update: if isValidUserDoc(request.resource.data, userId)
+        && (
+          isAdmin()
+          || (
+            isOwner(userId)
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.isActive == resource.data.isActive
+            && request.resource.data.permissions == resource.data.permissions
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_login'])
+          )
+        );
+      allow delete: if isAdmin() && !isOwner(userId);
+    }
+
+    // Admin lookup documents
+    match /admins/{adminId} {
+      allow read: if isAdmin() || isOwner(adminId);
+      allow write: if isAdmin() || (isOwner(adminId) && request.auth.token.email == 'abdullah286205@gmail.com');
+    }
+
+    // Admin-only email pre-authorization invitations
+    match /invited_users/{emailKey} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.email == request.auth.token.email);
+      allow write: if isAdmin();
+    }
+
+    // Business Store Data (Protected — requires active Admin-created account)
+    match /products/{productId} {
+      allow read, write: if isAdmin() || isActiveStaff();
+    }
+
+    match /customers/{customerId} {
+      allow read, write: if isAdmin() || isActiveStaff();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read, write: if isAdmin() || isActiveStaff();
+    }
+
+    match /invoices/{invoiceId} {
+      allow read, write: if isAdmin() || isActiveStaff();
+    }
+
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin() || isActiveStaff();
+    }
+
+    match /system/{docId} {
+      allow read, write: if isAdmin() || isActiveStaff();
+    }
+
+    // Default deny for everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AppNavigationModule } from '../../types';
-import { PWAInstallButton } from '../common/PWAInstallButton';
 
 interface NavItem {
   id: AppNavigationModule;
@@ -42,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'barcode', labelKey: 'barcode', icon: ScanBarcode },
   { id: 'expenses', labelKey: 'expenses', icon: Wallet },
   { id: 'settings', labelKey: 'settings', icon: Settings },
+  { id: 'admin', labelKey: 'adminPanel', icon: ShieldCheck },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -56,8 +56,11 @@ export const Sidebar: React.FC = () => {
     setLanguage,
     settings,
     currentUser,
+    hasModuleAccess,
     setShowLoginModal,
   } = useApp();
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => hasModuleAccess(item.id));
 
   return (
     <aside className="hidden lg:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-200 select-none shrink-0 h-screen sticky top-0">
@@ -80,7 +83,7 @@ export const Sidebar: React.FC = () => {
 
       {/* Navigation List */}
       <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeModule === item.id;
           return (
@@ -117,16 +120,16 @@ export const Sidebar: React.FC = () => {
             {currentUser ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-1">
               <span className="text-xs font-semibold text-white truncate group-hover:text-emerald-300">
-                {currentUser ? currentUser.name : 'Admin Sign In'}
+                {currentUser ? currentUser.name : 'Not Signed In'}
               </span>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono uppercase shrink-0">
                 {currentUser ? currentUser.role : 'Guest'}
               </span>
             </div>
             <p className="text-[10px] text-slate-400 font-mono truncate">
-              {currentUser ? currentUser.email : 'abdullah286205@gmail.com'}
+              {currentUser ? currentUser.email : ''}
             </p>
           </div>
         </button>
@@ -153,9 +156,6 @@ export const Sidebar: React.FC = () => {
             <span>{language === 'en' ? 'বাংলা' : 'English'}</span>
           </button>
         </div>
-
-        {/* Android & Web App Install CTA */}
-        <PWAInstallButton variant="full" />
 
         <button
           onClick={triggerSyncNow}

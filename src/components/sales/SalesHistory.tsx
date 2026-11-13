@@ -17,7 +17,8 @@ import { Invoice } from '../../types';
 import { InvoiceReceiptModal } from '../invoice/InvoiceReceiptModal';
 
 export const SalesHistory: React.FC = () => {
-  const { t, settings, invoices, cancelInvoice } = useApp();
+  const { t, settings, invoices, cancelInvoice, hasActionPermission } = useApp();
+  const canCancelInvoice = hasActionPermission('canCancelInvoice');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
@@ -251,7 +252,7 @@ export const SalesHistory: React.FC = () => {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {inv.payment_status !== 'cancelled' && (
+                        {inv.payment_status !== 'cancelled' && canCancelInvoice && (
                           <button
                             onClick={() => {
                               if (
